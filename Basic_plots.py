@@ -65,7 +65,7 @@ def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y"
     plt.savefig(outfile)
     
     
-def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=0.01, text_loc="lower right", color = "C0", pearson = True, spearman = True, p_pearson = None, p_spearman = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True):
+def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, p_pearson = None, p_spearman = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True):
 
     # Add second layer (alpha=1, color_second_layer="C1", hist second layer normalized to max of everything)    
     # Separate fontsize for labels and legend
@@ -147,7 +147,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     hist = np.histogram(data_frame[key_x].values, range=x_lim, bins=n_bins, density=True)
     x = (hist[1][1:]+hist[1][:-1])/2
     
-    spl = UnivariateSpline(np.insert(x,len(x),1),np.insert(hist[0],len(hist[0]),hist[0][-1]))
+    spl = UnivariateSpline(np.insert(x,len(x),hist[1][-1]),np.insert(hist[0],len(hist[0]),hist[0][-1]))
     spl.set_smoothing_factor(smoothing_factor)
     
     xs = np.linspace(x_lim[0],x_lim[1],1000)
@@ -166,7 +166,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     hist = np.histogram(data_frame[key_y].values, range=y_lim, bins=n_bins, density=True)
     y = (hist[1][1:]+hist[1][:-1])/2
     
-    spl = UnivariateSpline(np.insert(y,len(y),1),np.insert(hist[0],len(hist[0]),hist[0][-1]))
+    spl = UnivariateSpline(np.insert(y,len(y),hist[1][-1]),np.insert(hist[0],len(hist[0]),hist[0][-1]))
     spl.set_smoothing_factor(smoothing_factor)
     
     ys = np.linspace(y_lim[0],y_lim[1],1000)
@@ -175,7 +175,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     ax_hist_y.fill_betweenx(ys,spl(ys),np.zeros(len(ys)), color=keys[key_y]["Color"], alpha=.6)
     ax_hist_y.plot([0,np.nanmax(hist[0])*1.1],[np.nanmedian(data_to_plot[key_y]),np.nanmedian(data_to_plot[key_y])],c="k",ls="--")
     
-    ax_hist_y.set_ylim(y_lim)           
+    ax_hist_y.set_ylim(y_lim)     
     ax_hist_y.set_xlim(0,np.nanmax(hist[0])*1.1)
     
     plt.savefig(outfile, bbox_inches="tight")
