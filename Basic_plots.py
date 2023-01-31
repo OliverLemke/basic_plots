@@ -69,6 +69,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
 
     # Add second layer (alpha=1, color_second_layer="C1", hist second layer normalized to max of everything)    
     # Separate fontsize for labels and legend
+    # Formatter for same precision labels
     
     fig = plt.figure()
     fig.set_size_inches(7.5,7.5)
@@ -133,7 +134,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     try:    
         anchored_text = AnchoredText(text, loc=text_loc, prop=dict(size=fs_text))
     except:
-        print("legend_loc not found. Using upper left as a default.")
+        print("text_loc not found. Using upper left as a default.")
         ax_scatter.add_artist(AnchoredText(text, loc="upper left"))
     
     anchored_text.patch.set_alpha(0.5)
@@ -144,7 +145,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     ax_hist_x = fig.add_subplot(gs[0,0])
     ax_hist_x.axis("off")
     
-    hist = np.histogram(data_frame[key_x].values, range=x_lim, bins=n_bins, density=True)
+    hist = np.histogram(data_to_plot[key_x].values, range=x_lim, bins=n_bins, density=True)
     x = (hist[1][1:]+hist[1][:-1])/2
     
     spl = UnivariateSpline(np.insert(x,len(x),hist[1][-1]),np.insert(hist[0],len(hist[0]),hist[0][-1]))
@@ -163,7 +164,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     ax_hist_y = fig.add_subplot(gs[1,1])
     ax_hist_y.axis("off")
     
-    hist = np.histogram(data_frame[key_y].values, range=y_lim, bins=n_bins, density=True)
+    hist = np.histogram(data_to_plot[key_y].values, range=y_lim, bins=n_bins, density=True)
     y = (hist[1][1:]+hist[1][:-1])/2
     
     spl = UnivariateSpline(np.insert(y,len(y),hist[1][-1]),np.insert(hist[0],len(hist[0]),hist[0][-1]))
@@ -285,3 +286,78 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
     cbar.ax.tick_params(axis="x", labelsize=fs)
     
     plt.savefig(outfile,bbox_inches="tight") 
+    
+def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation_grid,pdf", y_label = "y", n_columns = 4, fs = 15, n_rows = None, x_lim = None, y_lim = None, plot_linreg = True, legend_loc = "upper left"):
+    
+    if not n_rows:
+        n_rows = int(np.ceil(len(keys)/n_columns))
+        
+    if n_columns * n_rows < len(keys):
+        raise ValueError("Grid resolution not fitting a plots. Increase n_columns or n_rows.")
+    
+    key_x = list(ref_key.keys())[0]
+    
+    fig = plt.figure()
+    fig.set_size_inches((n_columns*3),(n_rows*3)+1)
+    gs = gridspec.GridSpec(n_rows, n_columns, wspace=0.03, hspace=0.03)
+    
+    if not x_lim:
+        x_lim = (np.nanmin(data_frame[key_x])-(0.05*np.nanmax(data_frame[key_x])),np.nanmax(data_frame[key_x])+(0.05*np.nanmax(data_frame[key_x])))  
+    
+    if not y_lim:
+        y_lim = (np.nanmin(data_frame[list(keys.keys())])-(0.05*np.nanmax(data_frame[list(keys.keys())])),np.nanmax(data_frame[list(keys.keys())])+(0.05*np.nanmax(data_frame[list(keys.keys())])))
+          
+    for ind,key_y in enumerate(keys):
+        data_to_plot = data_frame.copy()[[key_x,key_y]]
+        
+        ax = fig.add_subplot(gs[int(np.floor(ind/n_columns)),int(np.mod(ind,n_columns))])        
+        ax.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="None",color=keys[key_y]["Color"], marker=".",s=40, label=keys[key_y]["Label"])
+            
+        if plot_linreg:
+            coef = np.polyfit(data_to_plot[key_x],data_to_plot[key_y],1)
+            poly1d_fn = np.poly1d(coef)
+            ax.plot(x_lim,poly1d_fn(x_lim),c="k")
+            
+        ax.set_xlim(x_lim)
+        ax.set_ylim(y_lim)
+        
+        if (int(np.mod(ind,n_columns)) == 0) and (int(np.floor(ind/n_columns)) == 0):
+            ax.set_xlabel(ref_key[key_x]["Label"], fontsize=fs)
+            ax.set_ylabel(y_label, fontsize=fs)
+            ax.xaxis.set_label_position('top')
+        
+        if (int(np.mod(ind,n_columns)) == 0):
+            ax.tick_params(axis="y", labelsize=fs)
+        else:
+            ax.set_yticklabels([])
+        if (int(np.floor(ind/n_columns)) == 0):
+            ax.tick_params(axis="x", labelsize=fs)
+            ax.xaxis.set_ticks_position('top')
+        else:
+            ax.set_xticklabels([])
+        
+        ax.grid(axis='both', color='0.8')
+        
+        try:
+            legend = ax.legend(loc=legend_loc, fontsize=fs)
+        except:
+            print("legend_loc not found. Using upper left as a default.")
+            legend = ax.legend(loc="upper left", fontsize=fs, shadow=True, fancybox=True)
+            
+        legend.get_frame().set_linewidth(2)
+
+        for legobj in legend.legendHandles:
+            legobj.set_sizes([100])
+            legobj.set_linewidth(5)
+            
+    plt.savefig(outfile, bbox_inches="tight")
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
