@@ -298,8 +298,8 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
     key_x = list(ref_key.keys())[0]
     
     fig = plt.figure()
-    fig.set_size_inches((n_columns*3),(n_rows*3)+1)
-    gs = gridspec.GridSpec(n_rows, n_columns, wspace=0.03, hspace=0.03)
+    fig.set_size_inches((n_columns*3)+1.2,(n_rows*3)+0.9)
+    gs = gridspec.GridSpec(n_rows+1, n_columns+1, wspace=0.03, hspace=0.03, width_ratios=[4]+[10]*n_columns, height_ratios=[3]+[10]*n_rows)
     
     if not x_lim:
         x_lim = (np.nanmin(data_frame[key_x])-(0.05*np.nanmax(data_frame[key_x])),np.nanmax(data_frame[key_x])+(0.05*np.nanmax(data_frame[key_x])))  
@@ -310,7 +310,7 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
     for ind,key_y in enumerate(keys):
         data_to_plot = data_frame.copy()[[key_x,key_y]]
         
-        ax = fig.add_subplot(gs[int(np.floor(ind/n_columns)),int(np.mod(ind,n_columns))])        
+        ax = fig.add_subplot(gs[int(np.floor(ind/n_columns))+1,int(np.mod(ind,n_columns))+1])        
         ax.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="None",color=keys[key_y]["Color"], marker=".",s=40, label=keys[key_y]["Label"])
             
         if plot_linreg:
@@ -321,19 +321,13 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
         ax.set_xlim(x_lim)
         ax.set_ylim(y_lim)
         
-        if (int(np.mod(ind,n_columns)) == 0) and (int(np.floor(ind/n_columns)) == 0):
-            ax.set_xlabel(ref_key[key_x]["Label"], fontsize=fs)
-            ax.set_ylabel(y_label, fontsize=fs)
-            ax.xaxis.set_label_position('top')
+        ax.tick_params(axis="y", labelsize=fs)
+        ax.tick_params(axis="x", labelsize=fs)
+        ax.xaxis.set_ticks_position('top')
         
-        if (int(np.mod(ind,n_columns)) == 0):
-            ax.tick_params(axis="y", labelsize=fs)
-        else:
+        if not (int(np.mod(ind,n_columns)) == 0):
             ax.set_yticklabels([])
-        if (int(np.floor(ind/n_columns)) == 0):
-            ax.tick_params(axis="x", labelsize=fs)
-            ax.xaxis.set_ticks_position('top')
-        else:
+        if not (int(np.floor(ind/n_columns)) == 0):
             ax.set_xticklabels([])
         
         ax.grid(axis='both', color='0.8')
@@ -350,6 +344,25 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
             legobj.set_sizes([100])
             legobj.set_linewidth(5)
             
+    ax_x = fig.add_subplot(gs[0,1:])
+    ax_x.set_xlim(0,1)
+    ax_x.set_ylim(0,1)
+    ax_x.axis('off')
+    
+    ax_x.text(0.5,1.0,ref_key[key_x]["Label"], fontsize=fs, horizontalalignment='center', verticalalignment='top')
+    
+    ax_y = fig.add_subplot(gs[1:,0])
+    ax_y.set_xlim(0,1)
+    ax_y.set_ylim(0,1)
+    ax_y.axis('off')
+  
+    ax_y.text(0.0,0.5,y_label, fontsize=fs, rotation=90, horizontalalignment='left', verticalalignment='center')
+
+    #fig.suptitle(ref_key[key_x]["Label"], fontsize=fs)
+    #fig.supylabel(y_label, fontsize=fs)
+    #fig.text(0.5, 0.9, ref_key[key_x]["Label"], fontsize=fs, ha='center')
+    #fig.text(0.05, 0.5, y_label, fontsize=fs, va='center', rotation='vertical')
+    
     plt.savefig(outfile, bbox_inches="tight")
         
         
