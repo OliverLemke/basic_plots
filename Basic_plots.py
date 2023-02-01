@@ -14,6 +14,8 @@ from scipy.stats import pearsonr, spearmanr
 from matplotlib.offsetbox import AnchoredText
 import matplotlib as mpl
 from statsmodels.stats.multitest import multipletests
+from sklearn.metrics import roc_curve, roc_auc_score
+
 
 def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y", fs=15, n_bins=20, smoothing_factor=0.01, legend_loc="upper left", x_lim=None, grid=True):
     
@@ -242,14 +244,14 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
             p_values = np.asarray([[spearmanr(data_frame[key_1],data_frame[key_2])[1] for key_1 in keys] for key_2 in ref_keys])
             p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
         else:
-            p_vadjusted = p_values
+            p_adjusted = p_values
     elif corr_type == "Pearson":
         data_to_plot = np.asarray([[pearsonr(data_frame[key_1],data_frame[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
         if not p_values:
             p_values = np.asarray([[pearsonr(data_frame[key_1],data_frame[key_2])[1] for key_1 in keys] for key_2 in ref_keys])
             p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
         else:
-            p_vadjusted = p_values
+            p_adjusted = p_values
     else:
          raise ValueError("corr_type not found")   
     
@@ -422,7 +424,37 @@ def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_e
     ax.legend(*sc.legend_elements("sizes", num=num_legend_labels),fontsize=fs, ncol=2, bbox_to_anchor=(1.15, 0))
     plt.savefig(outfile,bbox_inches="tight")
        
+def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_AUC.pdf", fs=15, grid=True, fs_legend=15):
         
+    indices = [index for index in data_frame_ref_keys.index if index in data_frame_keys.index]
+    
+    for ref_key in ref_keys:
+        
+        fig,ax = plt.subplots()
+        fig.set_size_inches(5,5)
+        
+        for key in keys:        
+            fpr, tpr, _ = roc_curve(data_frame_keys.loc[indices,key],data_frame_ref_keys.loc[indices,ref_key])
+            ax.plot(fpr, tpr, lw=5, label= keys[key]["Label"]+": {:.2f}".format(roc_auc_score(data_frame_keys.loc[indices,key],data_frame_ref_keys.loc[indices,ref_key])),c=keys[key]["Color"],zorder=20)
+    
+        # Plot reference line
+        ax.plot([0,1],[0,1],ls="--",c="k",lw=3)
+        
+        # Set layout
+        ax.set_xlabel("1-Specificity",fontsize=fs)
+        ax.set_ylabel("Sensitivity",fontsize=fs)
+        ax.set_xticks([0.25,0.5,0.75,1.0])
+        ax.set_yticks([0.0,0.25,0.5,0.75,1.0])
+        ax.set_xticklabels([0.25,0.5,0.75,1.0],fontsize=fs)
+        ax.set_yticklabels([0.0,0.25,0.5,0.75,1.0],fontsize=fs)
+        ax.set_xlim(0,1)
+        ax.set_ylim(0,1)
+        plt.legend(loc="lower right",fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
+        
+        if grid:
+            ax.grid(axis='both', color='0.8')
+    
+        plt.savefig(outfile,bbox_inches="tight")        
         
         
         
