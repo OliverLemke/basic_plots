@@ -428,7 +428,7 @@ def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_
         
     indices = [index for index in data_frame_ref_keys.index if index in data_frame_keys.index]
     
-    for ref_key in ref_keys:
+    for ind,ref_key in enumerate(ref_keys):
         
         fig,ax = plt.subplots()
         fig.set_size_inches(5,5)
@@ -453,9 +453,11 @@ def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_
         
         if grid:
             ax.grid(axis='both', color='0.8')
-    
-        plt.savefig(outfile,bbox_inches="tight")        
         
+        if len(ref_keys)>1:
+            plt.savefig(outfile[:-4]+"_"+str(ind)+outfile[-4:],bbox_inches="tight")  
+        else:
+            plt.savefig(outfile,bbox_inches="tight")  
         
         
         
