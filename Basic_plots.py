@@ -357,15 +357,71 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
     ax_y.axis('off')
   
     ax_y.text(0.0,0.5,y_label, fontsize=fs, rotation=90, horizontalalignment='left', verticalalignment='center')
-
-    #fig.suptitle(ref_key[key_x]["Label"], fontsize=fs)
-    #fig.supylabel(y_label, fontsize=fs)
-    #fig.text(0.5, 0.9, ref_key[key_x]["Label"], fontsize=fs, ha='center')
-    #fig.text(0.05, 0.5, y_label, fontsize=fs, va='center', rotation='vertical')
     
     plt.savefig(outfile, bbox_inches="tight")
         
+def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_enrichment.pdf", fs = 15, auc_column=None, cmap="Reds", splits=None, already_log10_transformed=False, v_lim=None, cbar_resolution = 4, num_legend_labels = 3):
+
+    if not already_log10_transformed:
+        data_frame[p_column] = np.log10(data_frame[p_column])
+    
+    if not v_lim:
+        v_lim = (np.floor(np.nanmin(data_frame[p_column])),0)
+    
+    dv = v_lim[1]-v_lim[0]
+    try:
+        cm = mpl.cm.get_cmap(cmap)
+    except:
+        raise ValueError("Colormap not found")
+    
+    fig,ax=plt.subplots()
+    
+    if auc_column:
+        fig.set_size_inches(2.5,len(keys)/2)
+    else:
+        fig.set_size_inches(0.5,len(keys)/2)
+    
+    sc = ax.scatter(np.ones(len(keys))*(-1),np.ones(len(keys))*(-1),s=data_frame.loc[list(keys.keys()),size_column],color="k", alpha=0.5)
+    
+    for ind,index in enumerate(keys.keys()):
+        ax.scatter(1,ind,s=data_frame.loc[index,size_column],color=cm(-1*data_frame.loc[index,p_column]/dv))
+        if auc_column:
+            ax.text(1.012,ind,"AUC = {:.2f}".format(data_frame.loc[index,auc_column]),verticalalignment="center",fontsize=fs)
+            
+    ax.set_yticks(np.arange(0,len(keys)))
+    ax.set_yticklabels([item[1] for item in keys.items()], fontsize=fs)
+    
+    ax.set_xticks([])
+    ax.set_ylim(len(keys)-0.5,-0.5)
+    if auc_column:
+        ax.set_xlim(0.99,1.08)
+    else:
+        ax.set_xlim(0.99,1.01)
         
+    if splits:
+        for split in splits:
+            ax.plot([0.99,1.08],[split+0.5,split+0.5],c="k",ls=":")
+    
+    if len(keys)<10:
+        # Maybe add dynamic shrinkage?
+        if auc_column:
+            c_map_ax = fig.add_axes([1.0, 0.15, 0.1, 0.7])
+        else:
+            c_map_ax = fig.add_axes([1.3, 0.15, 0.45, 0.7])
+    else:
+        if auc_column:
+            c_map_ax = fig.add_axes([1.0, 0.3, 0.1, 0.4])
+        else:
+            c_map_ax = fig.add_axes([1.3, 0.3, 0.45, 0.4])
+    mpl.colorbar.ColorbarBase(c_map_ax, cmap=cmap, orientation = 'vertical')
+    c_map_ax.set_ylabel("log10(adj. p-value)",rotation=90, fontsize=fs, labelpad=10)
+    
+    c_map_ax.set_yticks(np.arange(v_lim[1],v_lim[0]-0.01,np.floor(v_lim[0]/cbar_resolution))/dv*(-1))
+    c_map_ax.set_yticklabels(np.arange(v_lim[1],v_lim[0]-0.01,np.floor(v_lim[0]/cbar_resolution)),fontsize=fs)
+    
+    ax.legend(*sc.legend_elements("sizes", num=num_legend_labels),fontsize=fs, ncol=2, bbox_to_anchor=(1.15, 0))
+    plt.savefig(outfile,bbox_inches="tight")
+       
         
         
         
