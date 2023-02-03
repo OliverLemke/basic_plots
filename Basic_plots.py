@@ -290,10 +290,59 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
             if p_adjusted[ind2,ind]<alpha:
                 ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
             
-    cbar = plt.colorbar(im, orientation="horizontal", pad=0.1)
+    cbar = plt.colorbar(im, orientation="horizontal")
     cbar.set_label(corr_type+" correlation", fontsize=fs)
     cbar.ax.tick_params(axis="x", labelsize=fs)
     
+    plt.tight_layout()
+    plt.savefig(outfile,bbox_inches="tight") 
+    
+def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic"):
+    
+    if corr_type == "Spearman":
+        data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
+        if not p_values:
+            p_values = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
+            p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
+        else:
+            p_adjusted = p_values
+    elif corr_type == "Pearson":
+        data_to_plot = np.asarray([[pearsonr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
+        if not p_values:
+            p_values = np.asarray([[pearsonr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
+            p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
+        else:
+            p_adjusted = p_values
+    else:
+         raise ValueError("corr_type not found") 
+         
+    if not v_lim:
+        v_lim = (-np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10,np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10)
+    
+    fig, ax = plt.subplots()
+    fig.set_size_inches((len(selections)/2)+1,(len(keys)/2)+1)
+    
+    im = ax.matshow(data_to_plot, cmap=cmap, vmin=v_lim[0], vmax=v_lim[1])
+    
+    ax.set_xticks(np.arange(len(selections)))
+    ax.set_xticklabels([selections[selection] for selection in selections],rotation=90, fontsize=fs)
+    
+    ax.set_yticks(np.arange(len(keys)))
+    ax.set_yticklabels([keys[key]["Label"] for key in keys], fontsize=fs)
+    
+    ax.tick_params(axis="both", labelsize=fs)
+    ax.tick_params(axis="x", bottom=False)
+    
+    for ind in range(len(selections)):
+        for ind2 in range(len(keys)):
+            if p_adjusted[ind2,ind]<alpha:
+                ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
+    
+    cbar = plt.colorbar(im, orientation="vertical")
+    cbar.set_label(corr_type+" correlation", fontsize=fs)
+    cbar.ax.tick_params(axis="y", labelsize=fs)
+    
+    plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
 def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation_grid,pdf", y_label = "y", n_columns = 4, fs = 15, n_rows = None, x_lim = None, y_lim = None, plot_linreg = True, legend_loc = "upper left"):
