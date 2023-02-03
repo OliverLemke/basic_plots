@@ -247,7 +247,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     plt.savefig(outfile, bbox_inches="tight")
     
-def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15):
+def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic"):
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
         if not p_values:
@@ -265,11 +265,8 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
     else:
          raise ValueError("corr_type not found")   
     
-    
     if not v_lim:
-        v_lim = (-np.ceil(10*np.max((np.max(data_to_plot),np.abs(np.min(data_to_plot)))))/10,np.ceil(10*np.max((np.max(data_to_plot),np.abs(np.min(data_to_plot)))))/10)
-    
-    cmap = "seismic"
+        v_lim = (-np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10,np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10)
     
     #fig = plt.figure()
     fig, ax = plt.subplots()
