@@ -102,8 +102,8 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
         
         xs = np.linspace(x_lim[0],x_lim[1],1000)
         
-        ax.plot(xs, spl(xs), color=ref_key[key_x]["Color"], label=ref_key[key_x]["Label"])
-        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color=ref_key[key_x]["Color"], alpha=.6)
+        ax.plot(xs, spl(xs), color=ref_key[key_x]["Color"], label=ref_key[key_x]["Label"], alpha=.6)
+        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color=ref_key[key_x]["Color"], alpha=.4)
         
         max_y = np.nanmax((max_y,np.nanmax(hist[0])))
     
