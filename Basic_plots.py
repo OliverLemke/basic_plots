@@ -249,16 +249,16 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
 def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15):
     if corr_type == "Spearman":
-        data_to_plot = np.asarray([[spearmanr(data_frame[key_1],data_frame[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
+        data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
         if not p_values:
-            p_values = np.asarray([[spearmanr(data_frame[key_1],data_frame[key_2])[1] for key_1 in keys] for key_2 in ref_keys])
+            p_values = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[1] for key_1 in keys] for key_2 in ref_keys])
             p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
         else:
             p_adjusted = p_values
     elif corr_type == "Pearson":
-        data_to_plot = np.asarray([[pearsonr(data_frame[key_1],data_frame[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
+        data_to_plot = np.asarray([[pearsonr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
         if not p_values:
-            p_values = np.asarray([[pearsonr(data_frame[key_1],data_frame[key_2])[1] for key_1 in keys] for key_2 in ref_keys])
+            p_values = np.asarray([[pearsonr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[1] for key_1 in keys] for key_2 in ref_keys])
             p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
         else:
             p_adjusted = p_values
