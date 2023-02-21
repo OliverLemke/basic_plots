@@ -134,6 +134,7 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
 def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, p_pearson = None, p_spearman = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True):
 
     # Add second layer (alpha=1, color_second_layer="C1", hist second layer normalized to max of everything)    
+    ## Also for continuous values -> Use dict with highlight index and color!!!
     # Separate fontsize for labels and legend
     # Formatter for same precision labels
     
@@ -182,7 +183,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     if grid:
         ax_scatter.grid(axis='both', color='0.8')
         
-    if pearsonr or spearmanr:
+    if pearson or spearman:
         text = ""
         if pearson_corr:
             if p_pearson:
@@ -197,15 +198,15 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
             else:
                 text += "R_Spearman = {0:.2f}\np_Spearman = {1:.2e}".format(spearman_corr[0],spearman_corr[1])
     
-    try:    
-        anchored_text = AnchoredText(text, loc=text_loc, prop=dict(size=fs_text))
-    except:
-        print("text_loc not found. Using upper left as a default.")
-        ax_scatter.add_artist(AnchoredText(text, loc="upper left"))
+        try:    
+            anchored_text = AnchoredText(text, loc=text_loc, prop=dict(size=fs_text))
+        except:
+            print("text_loc not found. Using upper left as a default.")
+            ax_scatter.add_artist(AnchoredText(text, loc="upper left"))
     
-    anchored_text.patch.set_alpha(0.5)
-    anchored_text.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
-    ax_scatter.add_artist(anchored_text)
+        anchored_text.patch.set_alpha(0.5)
+        anchored_text.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+        ax_scatter.add_artist(anchored_text)
     
     #
     ax_hist_x = fig.add_subplot(gs[0,0])
@@ -606,7 +607,6 @@ def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_
             plt.savefig(outfile[:-4]+"_"+str(ind)+outfile[-4:],bbox_inches="tight")  
         else:
             plt.savefig(outfile,bbox_inches="tight")  
-        
-        
+            
         
         
