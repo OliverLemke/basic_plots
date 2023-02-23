@@ -131,11 +131,9 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
     plt.savefig(outfile)
     
 # Scatter    
-def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, p_pearson = None, p_spearman = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True):
+def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, p_pearson = None, p_spearman = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left"):
 
     # Add second layer (alpha=1, color_second_layer="C1", hist second layer normalized to max of everything)    
-    ## Also for continuous values -> Use dict with highlight index and color!!!
-    # Separate fontsize for labels and legend
     # Formatter for same precision labels
     
     fig = plt.figure()
@@ -151,6 +149,10 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     ax_scatter = fig.add_subplot(gs[1,0])
     ax_scatter.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="None",edgecolors=color, marker=".",s=40)#,alpha=.6)
     
+    if highlight:
+        for key in highlight:
+            ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=80, label=key)#,alpha=.6)
+
     if pearson:
         pearson_corr = pearsonr(data_to_plot[key_x],data_to_plot[key_y])
     else:
@@ -201,13 +203,21 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         try:    
             anchored_text = AnchoredText(text, loc=text_loc, prop=dict(size=fs_text))
         except:
-            print("text_loc not found. Using upper left as a default.")
-            ax_scatter.add_artist(AnchoredText(text, loc="upper left"))
+            print("text_loc not found. Using lower right as a default.")
+            anchored_text = AnchoredText(text, loc="lower right", prop=dict(size=fs_text))
+            #ax_scatter.add_artist(AnchoredText(text, loc="lower right"))
     
         anchored_text.patch.set_alpha(0.5)
         anchored_text.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
         ax_scatter.add_artist(anchored_text)
     
+    if highlight:
+        try:
+            ax_scatter.legend(loc=legend_loc, fontsize=fs_text)
+        except:
+            print("legend_loc not found. Using upper left as a default.")
+            ax_scatter.legend(loc="upper_left", fontsize=fs_text)
+        
     #
     ax_hist_x = fig.add_subplot(gs[0,0])
     ax_hist_x.axis("off")
