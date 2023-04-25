@@ -10,12 +10,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 import matplotlib.gridspec as gridspec
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr, spearmanr, kendalltau
 from matplotlib.offsetbox import AnchoredText
 import matplotlib as mpl
 from statsmodels.stats.multitest import multipletests
 from sklearn.metrics import roc_curve, roc_auc_score
 import re
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+#%%
 
 # Histogram
 def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y", fs=15, fs_legend=15, n_bins=20, smoothing_factor=1e-10, legend_loc="upper left", x_lim=None, grid=True):
@@ -131,10 +134,13 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
     plt.savefig(outfile)
     
 # Scatter    
-def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, p_pearson = None, p_spearman = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left"):
+def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, kendall = False, p_pearson = None, p_spearman = None, p_kendall = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left"):
 
-    # Add second layer (alpha=1, color_second_layer="C1", hist second layer normalized to max of everything)    
     # Formatter for same precision labels
+    # Add title
+    # Add gradient for highlighting
+    ## Use if gradient before if highlight, use cmap -> Include colorbar!!!!
+    ### Use scatter(x,y,c=value,cmap)
     
     fig = plt.figure()
     fig.set_size_inches(7.5,7.5)
@@ -151,7 +157,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     if highlight:
         for key in highlight:
-            ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=80, label=key)#,alpha=.6)
+            ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=150, label=key)#,alpha=.6)
 
     if pearson:
         pearson_corr = pearsonr(data_to_plot[key_x],data_to_plot[key_y])
@@ -161,7 +167,11 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         spearman_corr = spearmanr(data_to_plot[key_x],data_to_plot[key_y])
     else:
         spearman_corr = None
-        
+    if kendall:
+        kendall_corr = kendalltau(data_to_plot[key_x],data_to_plot[key_y])
+    else:
+        kendall_corr = None
+    
     ax_scatter.set_xlabel(keys[key_x]["Label"], fontsize=fs)
     ax_scatter.set_ylabel(keys[key_y]["Label"], fontsize=fs)
     ax_scatter.tick_params(axis="both", labelsize=fs)
@@ -185,21 +195,26 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     if grid:
         ax_scatter.grid(axis='both', color='0.8')
         
-    if pearson or spearman:
+    if pearson or spearman or kendall:
         text = ""
-        if pearson_corr:
+        if pearson:
             if p_pearson:
                 text += "R_Pearson = {0:.2f}\np_Pearson = {1:.2e}".format(pearson_corr[0],p_pearson)            
             else:
                 text += "R_Pearson = {0:.2f}\np_Pearson = {1:.2e}".format(pearson_corr[0],pearson_corr[1])
-        if pearson_corr and spearman_corr:
+        if pearson and spearman:
             text +="\n"
-        if spearman_corr:
+        if spearman:
             if p_spearman:
                 text += "R_Spearman = {0:.2f}\np_Spearman = {1:.2e}".format(spearman_corr[0],p_spearman)
             else:
                 text += "R_Spearman = {0:.2f}\np_Spearman = {1:.2e}".format(spearman_corr[0],spearman_corr[1])
-    
+        if (kendall and spearman) or (kendall and pearson):
+            text +="\n"
+            if p_kendall:
+                text += "Kendall_tau = {0:.2f}\np_Kendall = {1:.2e}".format(kendall_corr[0],p_kendall)
+            else:
+                text += "Kendall_tau = {0:.2f}\np_Kendall = {1:.2e}".format(kendall_corr[0],kendall_corr[1])
         try:    
             anchored_text = AnchoredText(text, loc=text_loc, prop=dict(size=fs_text))
         except:
@@ -237,6 +252,14 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     ax_hist_x.set_xlim(x_lim)           
     ax_hist_x.set_ylim(0,np.nanmax(hist[0])*1.1)
     
+    #if highlight_hist and highlight:
+    #    for key in highlight:
+    #        hist_high_n = np.histogram(data_to_plot.loc[highlight[key]["Indices"],key_x].values, range=x_lim, bins=n_bins, density=True)
+    #        hist_high = (hist_high_n[0]/np.max(hist_high_n[0])*np.max(hist[0]),hist_high_n[1])
+    #        spl = UnivariateSpline(np.insert(x,len(x),hist_high[1][-1]),np.insert(hist_high[0],len(hist_high[0]),hist_high[0][-1]))
+    #        spl.set_smoothing_factor(smoothing_factor)
+    #        ax_hist_x.plot(xs, spl(xs), color=highlight[key]["Color"])
+    #        ax_hist_x.fill_between(xs, np.zeros(len(xs)), spl(xs), color=highlight[key]["Color"], alpha=.6)
     #
     ax_hist_y = fig.add_subplot(gs[1,1])
     ax_hist_y.axis("off")
@@ -309,7 +332,7 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
     plt.savefig(outfile,bbox_inches="tight") 
     
 def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic"):
-    
+    # include kendall-tau
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
         if not p_values:
@@ -348,8 +371,65 @@ def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, o
         for ind2 in range(len(keys)):
             if p_adjusted[ind2,ind]<alpha:
                 ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
+                
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="10%", pad=0.05)
     
-    cbar = plt.colorbar(im, orientation="vertical")
+    #im_ratio = data_to_plot.shape[0]/data_to_plot.shape[1]
+    #cbar = plt.colorbar(im, fraction=0.046*im_ratio, pad=0.04, orientation="vertical")
+    
+    cbar = plt.colorbar(im, orientation="vertical", cax=cax)
+    cbar.set_label(corr_type+" correlation", fontsize=fs)
+    cbar.ax.tick_params(axis="y", labelsize=fs)
+    
+    plt.tight_layout()
+    plt.savefig(outfile,bbox_inches="tight") 
+    
+def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key_2, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic"):
+    
+    if corr_type == "Spearman":
+        data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
+        if not p_values:
+            p_values = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
+            p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
+        else:
+            p_adjusted = p_values
+    elif corr_type == "Pearson":
+        data_to_plot = np.asarray([[pearsonr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
+        if not p_values:
+            p_values = np.asarray([[pearsonr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
+            p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
+        else:
+            p_adjusted = p_values
+    else:
+         raise ValueError("corr_type not found") 
+         
+    if not v_lim:
+        v_lim = (-np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10,np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10)
+    
+    fig, ax = plt.subplots()
+    fig.set_size_inches((len(selections)/2)+1,(len(keys)/2)+1)
+    
+    im = ax.matshow(data_to_plot, cmap=cmap, vmin=v_lim[0], vmax=v_lim[1])
+    
+    ax.set_xticks(np.arange(len(selections)))
+    ax.set_xticklabels([selections[selection] for selection in selections],rotation=90, fontsize=fs)
+    
+    ax.set_yticks(np.arange(len(keys)))
+    ax.set_yticklabels([keys[key]["Label"] for key in keys], fontsize=fs)
+    
+    ax.tick_params(axis="both", labelsize=fs)
+    ax.tick_params(axis="x", bottom=False)
+    
+    for ind in range(len(selections)):
+        for ind2 in range(len(keys)):
+            if p_adjusted[ind2,ind]<alpha:
+                ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
+    
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="10%", pad=0.05)
+    
+    cbar = plt.colorbar(im, orientation="vertical", cax=cax)
     cbar.set_label(corr_type+" correlation", fontsize=fs)
     cbar.ax.tick_params(axis="y", labelsize=fs)
     
