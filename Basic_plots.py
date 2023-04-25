@@ -19,6 +19,10 @@ import re
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #%%
+# TODO
+## Error handling for missing keys
+
+#%%
 
 # Histogram
 def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y", fs=15, fs_legend=15, n_bins=20, smoothing_factor=1e-10, legend_loc="upper left", x_lim=None, grid=True):
@@ -509,16 +513,24 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
     
     plt.savefig(outfile, bbox_inches="tight")
 
-def plot_correlations_boxplot(data_frame, keys, ref_key, corr_type="Spearman", outfile="Out_boxplot.pdf", fs=15, y_lim=None, grid=True):
+def plot_correlations_boxplot(data_frame, keys, ref_key, ind_key=0, selection=None, corr_type="Spearman", outfile="Out_boxplot.pdf", fs=15, y_lim=None, grid=True):
 
-    key_x = list(ref_key.keys())[0]
+    key_x = list(ref_key.keys())[ind_key]
     
-    if corr_type=="Spearman":
-        collection_R = [[spearmanr(data_frame.copy()[[key_x,column]].dropna()[key_x],data_frame.copy()[[key_x,column]].dropna()[column])[0] for column in [column for column in data_frame.columns if re.findall(key,column)]] for key in keys]
-    elif corr_type=="Pearson":
-        collection_R = [[pearsonr(data_frame.copy()[[key_x,column]].dropna()[key_x],data_frame.copy()[[key_x,column]].dropna()[column])[0] for column in [column for column in data_frame.columns if re.findall(key,column)]] for key in keys]
+    if selection:
+        if corr_type=="Spearman":
+            collection_R = [[spearmanr(data_frame.copy()[[key_x,column]].dropna()[key_x],data_frame.copy()[[key_x,column]].dropna()[column])[0] for column in data_frame.columns if re.findall(key,column) for el in selection if re.findall(el,column)] for key in keys]
+        elif corr_type=="Pearson":
+            collection_R = [[pearsonr(data_frame.copy()[[key_x,column]].dropna()[key_x],data_frame.copy()[[key_x,column]].dropna()[column])[0] for column in data_frame.columns if re.findall(key,column) for el in selection if re.findall(el,column)] for key in keys]            
+        else:
+            raise ValueError("Correlation type not defined.")    
     else:
-        raise ValueError("Correlation type not defined.")
+        if corr_type=="Spearman":
+            collection_R = [[spearmanr(data_frame.copy()[[key_x,column]].dropna()[key_x],data_frame.copy()[[key_x,column]].dropna()[column])[0] for column in data_frame.columns if re.findall(key,column)] for key in keys]
+        elif corr_type=="Pearson":
+            collection_R = [[pearsonr(data_frame.copy()[[key_x,column]].dropna()[key_x],data_frame.copy()[[key_x,column]].dropna()[column])[0] for column in data_frame.columns if re.findall(key,column)] for key in keys]
+        else:
+            raise ValueError("Correlation type not defined.")
     
     
     fig,ax = plt.subplots()
