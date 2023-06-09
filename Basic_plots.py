@@ -17,6 +17,7 @@ from statsmodels.stats.multitest import multipletests
 from sklearn.metrics import roc_curve, roc_auc_score
 import re
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.optimize import curve_fit
 
 #%%
 # TODO
@@ -137,8 +138,11 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
     plt.tight_layout()
     plt.savefig(outfile)
     
+def fit_1_over_x(x,a,b,c):
+    return a/(x+b)+c
+
 # Scatter    
-def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, kendall = False, p_pearson = None, p_spearman = None, p_kendall = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left"):
+def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, kendall = False, p_pearson = None, p_spearman = None, p_kendall = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left", plot_1_over_x=False, highlight_size=150):
 
     # Formatter for same precision labels
     # Add title
@@ -161,7 +165,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     if highlight:
         for key in highlight:
-            ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=150, label=key)#,alpha=.6)
+            ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=highlight_size, label=key)#,alpha=.6)
 
     if pearson:
         pearson_corr = pearsonr(data_to_plot[key_x],data_to_plot[key_y])
@@ -192,6 +196,11 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         coef = np.polyfit(data_to_plot[key_x],data_to_plot[key_y],1)
         poly1d_fn = np.poly1d(coef)
         ax_scatter.plot(x_lim,poly1d_fn(x_lim),c="k")
+    
+    if plot_1_over_x:
+        popt, pcov = curve_fit(fit_1_over_x, data_to_plot[key_x], data_to_plot[key_y])
+        xs = np.linspace(x_lim[0], x_lim[1],100)
+        ax_scatter.plot(xs,fit_1_over_x(xs, *popt),c="k")
         
     if plot_xy:
         ax_scatter.plot(x_lim, x_lim, ls=":", c="k")
@@ -613,9 +622,10 @@ def plot_binned_average(data_list, N=100, outfile="Out_binned_average", cmap = "
     plt.savefig(outfile, bbox_inches="tight")
         
 # Enrichment    
-def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_enrichment.pdf", fs = 15, auc_column=None, cmap="Reds", splits=None, already_log10_transformed=False, v_lim=None, cbar_resolution = 4, num_legend_labels = 3):
+def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_enrichment.pdf", fs = 15, auc_column=None, cmap="Reds", splits=None, already_log10_transformed=False, v_lim=None, cbar_resolution = 4, num_legend_labels = 3, label=True):
 
     if not already_log10_transformed:
+        data_frame = data_frame.copy()
         data_frame[p_column] = np.log10(data_frame[p_column])
     
     if not v_lim:
@@ -667,12 +677,16 @@ def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_e
         else:
             c_map_ax = fig.add_axes([1.3, 0.3, 0.45, 0.4])
     mpl.colorbar.ColorbarBase(c_map_ax, cmap=cmap, orientation = 'vertical')
-    c_map_ax.set_ylabel("log10(adj. p-value)",rotation=90, fontsize=fs, labelpad=10)
+    if label:
+        c_map_ax.set_ylabel("log10(adj. p-value)",rotation=90, fontsize=fs, labelpad=10)
     
     c_map_ax.set_yticks(np.arange(v_lim[1],v_lim[0]-0.01,np.floor(v_lim[0]/cbar_resolution))/dv*(-1))
     c_map_ax.set_yticklabels(np.arange(v_lim[1],v_lim[0]-0.01,np.floor(v_lim[0]/cbar_resolution)),fontsize=fs)
     
-    ax.legend(*sc.legend_elements("sizes", num=num_legend_labels),fontsize=fs, ncol=2, bbox_to_anchor=(1.15, 0))
+    if len(keys)==1:
+        ax.legend(*sc.legend_elements("sizes", num=num_legend_labels),fontsize=fs, ncol=1, bbox_to_anchor=(0.85, 0))
+    else:
+        ax.legend(*sc.legend_elements("sizes", num=num_legend_labels),fontsize=fs, ncol=2, bbox_to_anchor=(1.15, 0))
     plt.savefig(outfile,bbox_inches="tight")
        
 def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_AUC.pdf", fs=15, grid=True, fs_legend=15):
