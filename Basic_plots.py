@@ -147,8 +147,9 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     # Formatter for same precision labels
     # Add title
     # Add gradient for highlighting
-    ## Use if gradient before if highlight, use cmap -> Include colorbar!!!!
+    ## Use "if gradient" before "if highlight", use cmap -> Include colorbar!!!!
     ### Use scatter(x,y,c=value,cmap)
+    ### Include colorbar
     
     fig = plt.figure()
     fig.set_size_inches(7.5,7.5)
@@ -294,7 +295,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     plt.savefig(outfile, bbox_inches="tight")
     
-def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic"):
+def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0):
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
         if not p_values:
@@ -327,7 +328,7 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
     ax.set_xticklabels([keys[key]["Label"] for key in keys],rotation=90, fontsize=fs)
     
     ax.set_yticks(np.arange(len(ref_keys)))
-    ax.set_yticklabels([ref_keys[key]["Label"] for key in ref_keys], fontsize=fs)
+    ax.set_yticklabels([ref_keys[key]["Label"] for key in ref_keys], fontsize=fs,rotation=rotation, va="center")
     
     ax.tick_params(axis="both", labelsize=fs)
     ax.tick_params(axis="x", bottom=False)
@@ -339,12 +340,12 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
             
     cbar = plt.colorbar(im, orientation="horizontal")
     cbar.set_label(corr_type+" correlation", fontsize=fs)
-    cbar.ax.tick_params(axis="x", labelsize=fs)
+    cbar.ax.tick_params(axis="x", labelsize=fs, rotation=rotation)
     
     plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
-def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic"):
+def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=90):
     # include kendall-tau
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
@@ -372,7 +373,7 @@ def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, o
     im = ax.matshow(data_to_plot, cmap=cmap, vmin=v_lim[0], vmax=v_lim[1])
     
     ax.set_xticks(np.arange(len(selections)))
-    ax.set_xticklabels([selections[selection] for selection in selections],rotation=90, fontsize=fs)
+    ax.set_xticklabels([selections[selection] for selection in selections],rotation=rotation, fontsize=fs)
     
     ax.set_yticks(np.arange(len(keys)))
     ax.set_yticklabels([keys[key]["Label"] for key in keys], fontsize=fs)
