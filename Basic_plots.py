@@ -18,6 +18,7 @@ from sklearn.metrics import roc_curve, roc_auc_score
 import re
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.optimize import curve_fit
+from matplotlib.patches import Patch
 
 #%%
 # TODO
@@ -750,5 +751,62 @@ def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_
         else:
             plt.savefig(outfile,bbox_inches="tight")  
             
+def plot_violin(data_frame, keys, ref_key, outfile="Out_violin.pdf", cut=0.25, fs=15, grid=True):
+
+    ref = list(ref_key.keys())[0]
+    
+    indices_hits = {ref:list(data_frame.index)}
+    colors = [ref_key[ref]["Color"]]
+    labels = ["all"]
+    
+    for key in keys:
+        scores_sorted = data_frame[key].sort_values()
+        indices_hits.update({key+"_flop":list(scores_sorted.index)[:int(np.floor(cut*len(scores_sorted)))]})
+        colors.append(keys[key]["Color_lower"])
+        labels.append("low")
+        indices_hits.update({key+"_top":list(scores_sorted.index)[int(np.ceil((1-cut)*len(scores_sorted))):]})
+        colors.append(keys[key]["Color_upper"])
+        labels.append("high")
         
+    data_to_plot = [data_frame.loc[indices_hits[key],ref].dropna().values for key in indices_hits]
+    
+    fig,ax = plt.subplots()
+    fig.set_size_inches(1+1+(len(keys)*2),4+(len(keys)/2))
+    bg = ax.violinplot(data_to_plot, showmedians=False, widths=0.75, showextrema=False)
+    pl = ax.violinplot(data_to_plot, showmedians=True, widths=0.75, showextrema=True, quantiles=[[0.25,0.75]]*5)
+    
+    for pc in bg['bodies']:
+        pc.set_facecolor("w")
+        pc.set_edgecolor("w")
+        pc.set_alpha(1)
+    
+    for pc, color in zip(pl['bodies'], colors):
+        pc.set_facecolor(color)
+        pc.set_edgecolor(color)
+        
+    pl['cmedians'].set_color(colors)
+    pl['cmedians'].set_linewidth(3)
+    pl['cbars'].set_edgecolor(colors)
+    pl['cmaxes'].set_alpha(0)
+    pl['cmins'].set_alpha(0)
+    pl['cquantiles'].set_color([el for item in [[color]*2 for color in colors] for el in item])
+    pl['cquantiles'].set_linestyle(":")
+    
+    ax.set_xticks(list(range(1,(len(keys)*2+1)+1)))
+    ax.set_xticklabels(labels,size=fs,rotation=45)
+    
+    ax.tick_params(axis="y",labelsize=fs)
+    ax.set_ylabel(ref_key[ref]["Label"],fontsize=fs,labelpad=10)
+    
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(axis='both', color='0.8')
+        
+    handles = [Patch([0],[0],color=keys[key]["Color"],label=keys[key]["Label"]) for key in keys]
+    legend = ax.legend(handles=handles, fontsize=fs, bbox_to_anchor=(0.5, -0.2), fancybox=True,shadow=True,loc="upper center")
+    legend.get_frame().set_linewidth(2)
+    
+    plt.tight_layout()
+    plt.savefig(outfile)
+            
         
