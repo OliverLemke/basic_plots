@@ -46,9 +46,11 @@ def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y"
         
         xs = np.linspace(x_lim[0],x_lim[1],1000)
         
-        ax.plot(xs, spl(xs), color=keys[key]["Color"], label=keys[key]["Label"])
-        #ax.plot(x, hist[0], color=keys[key]["Color"])
-        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color=keys[key]["Color"], alpha=.6)
+        ax.plot(xs, spl(xs), color="w",zorder=1)
+        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color="w", alpha=1,zorder=1)
+        
+        ax.plot(xs, spl(xs), color=keys[key]["Color"], label=keys[key]["Label"],zorder=10)
+        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color=keys[key]["Color"], alpha=.6,zorder=10)
         
         max_y = np.nanmax((max_y,np.nanmax(hist[0])))
     
@@ -69,6 +71,7 @@ def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y"
         print("legend_loc not found. Using upper left as a default.")
         legend = plt.legend(loc="upper left", fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
     legend.get_frame().set_linewidth(2)
+    legend.set_zorder(20)
 
     for legobj in legend.legendHandles:
         legobj.set_linewidth(5)
@@ -97,8 +100,11 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
         
         xs = np.linspace(x_lim[0],x_lim[1],1000)
         
-        ax.plot(xs, spl(xs), color=selections[selection]["Color"], label=selections[selection]["Label"])
-        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color=selections[selection]["Color"], alpha=.6)
+        ax.plot(xs, spl(xs), color="w",zorder=1)
+        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color="w", alpha=1,zorder=1)
+        
+        ax.plot(xs, spl(xs), color=selections[selection]["Color"], label=selections[selection]["Label"],zorder=10)
+        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color=selections[selection]["Color"], alpha=.6,zorder=10)
         
         max_y = np.nanmax((max_y,np.nanmax(hist[0])))
     
@@ -110,6 +116,9 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
         spl.set_smoothing_factor(smoothing_factor)
         
         xs = np.linspace(x_lim[0],x_lim[1],1000)
+        
+        ax.plot(xs, spl(xs), color="w", alpha=1)
+        ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color="w", alpha=1)
         
         ax.plot(xs, spl(xs), color=ref_key[key_x]["Color"], label=ref_key[key_x]["Label"], alpha=.6)
         ax.fill_between(xs, np.zeros(len(xs)), spl(xs), color=ref_key[key_x]["Color"], alpha=.4)
@@ -133,6 +142,7 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
         print("legend_loc not found. Using upper left as a default.")
         legend = plt.legend(loc="upper left", fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
     legend.get_frame().set_linewidth(2)
+    legend.set_zorder(20)
 
     for legobj in legend.legendHandles:
         legobj.set_linewidth(5)
@@ -164,6 +174,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     data_to_plot.dropna(inplace=True)
     
     ax_scatter = fig.add_subplot(gs[1,0])
+    ax_scatter.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="w",edgecolors="w", marker=".",s=40)
     ax_scatter.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="None",edgecolors=color, marker=".",s=40)#,alpha=.6)
     
     if highlight:
@@ -209,7 +220,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         ax_scatter.plot(x_lim, x_lim, ls=":", c="k")
         
     if grid:
-        ax.set_axisbelow(True)
+        ax_scatter.set_axisbelow(True)
         ax_scatter.grid(axis='both', color='0.8')
         
     if pearson or spearman or kendall:
@@ -479,7 +490,8 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
     for ind,key_y in enumerate(keys):
         data_to_plot = data_frame.copy()[[key_x,key_y]]
         
-        ax = fig.add_subplot(gs[int(np.floor(ind/n_columns))+1,int(np.mod(ind,n_columns))+1])        
+        ax = fig.add_subplot(gs[int(np.floor(ind/n_columns))+1,int(np.mod(ind,n_columns))+1])  
+        ax.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="w",color="w", marker=".",s=40)
         ax.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="None",color=keys[key_y]["Color"], marker=".",s=40, label=keys[key_y]["Label"])
             
         if plot_linreg:
@@ -499,6 +511,7 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
         if not (int(np.floor(ind/n_columns)) == 0):
             ax.set_xticklabels([])
         
+        ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
         
         try:
@@ -598,6 +611,9 @@ def plot_binned_average(data_list, N=100, outfile="Out_binned_average", cmap = "
     
     ax = fig.add_subplot(gs[0,0])
     for ind in range(N-1):
+        ax.plot([xs[ind],xs[ind+1]], [mean_grouped[ind],mean_grouped[ind+1]], lw=3, c="w")
+        ax.fill_between([xs[ind],xs[ind+1]], [mean_grouped[ind]-std_grouped[ind],mean_grouped[ind+1]-std_grouped[ind+1]],[mean_grouped[ind]+std_grouped[ind],mean_grouped[ind+1]+std_grouped[ind+1]], color="w", alpha=1)
+    
         ax.plot([xs[ind],xs[ind+1]], [mean_grouped[ind],mean_grouped[ind+1]], lw=3, c=cm((((cv_grouped[ind]+cv_grouped[ind+1])/2)-min_cv)/(max_cv-min_cv)))
         ax.fill_between([xs[ind],xs[ind+1]], [mean_grouped[ind]-std_grouped[ind],mean_grouped[ind+1]-std_grouped[ind+1]],[mean_grouped[ind]+std_grouped[ind],mean_grouped[ind+1]+std_grouped[ind+1]], color=cm((((cv_grouped[ind]+cv_grouped[ind+1])/2)-min_cv)/(max_cv-min_cv)), alpha=0.6)
     
