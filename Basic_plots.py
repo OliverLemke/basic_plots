@@ -53,6 +53,7 @@ def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y"
         max_y = np.nanmax((max_y,np.nanmax(hist[0])))
     
     if grid:
+        ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
            
     ax.set_xlim(x_lim)           
@@ -116,6 +117,7 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
         max_y = np.nanmax((max_y,np.nanmax(hist[0])))
     
     if grid:
+        ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
            
     ax.set_xlim(x_lim)           
@@ -207,6 +209,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         ax_scatter.plot(x_lim, x_lim, ls=":", c="k")
         
     if grid:
+        ax.set_axisbelow(True)
         ax_scatter.grid(axis='both', color='0.8')
         
     if pearson or spearman or kendall:
@@ -295,7 +298,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     plt.savefig(outfile, bbox_inches="tight")
     
-def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0):
+def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0):
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
         if not p_values:
@@ -337,15 +340,18 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
         for ind2 in range(len(ref_keys)):
             if p_adjusted[ind2,ind]<alpha:
                 ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
-            
-    cbar = plt.colorbar(im, orientation="horizontal")
+    
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("bottom", size="10%", pad=0.05)
+    
+    cbar = plt.colorbar(im, orientation="horizontal",cax=cax)
     cbar.set_label(corr_type+" correlation", fontsize=fs)
-    cbar.ax.tick_params(axis="x", labelsize=fs, rotation=rotation)
+    cbar.ax.tick_params(axis="x", labelsize=fs, rotation=rotation_cb)
     
     plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
-def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=90):
+def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0):
     # include kendall-tau
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
@@ -394,7 +400,7 @@ def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, o
     
     cbar = plt.colorbar(im, orientation="vertical", cax=cax)
     cbar.set_label(corr_type+" correlation", fontsize=fs)
-    cbar.ax.tick_params(axis="y", labelsize=fs)
+    cbar.ax.tick_params(axis="y", labelsize=fs, rotation=rotation_cb)
     
     plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
@@ -554,6 +560,7 @@ def plot_correlations_boxplot(data_frame, keys, ref_key, ind_key=0, selection=No
     ax.plot([0.5,20.5],[0,0],c="k",ls=":")
     
     if grid:
+        ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
     
     if not y_lim:
@@ -608,6 +615,7 @@ def plot_binned_average(data_list, N=100, outfile="Out_binned_average", cmap = "
     ax.tick_params(axis="both",labelsize=fs)
     
     if grid:
+        ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
         
     cax = fig.add_subplot(gs[0,1])
@@ -718,6 +726,7 @@ def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_
         plt.legend(loc="lower right",fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
         
         if grid:
+            ax.set_axisbelow(True)
             ax.grid(axis='both', color='0.8')
         
         if len(ref_keys)>1:
