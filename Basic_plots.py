@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 import matplotlib.gridspec as gridspec
-from scipy.stats import pearsonr, spearmanr, kendalltau
+from scipy.stats import pearsonr, spearmanr, kendalltau, ranksums, wilcoxon
 from matplotlib.offsetbox import AnchoredText
 import matplotlib as mpl
 from statsmodels.stats.multitest import multipletests
@@ -809,4 +809,53 @@ def plot_violin(data_frame, keys, ref_key, outfile="Out_violin.pdf", cut=0.25, f
     plt.tight_layout()
     plt.savefig(outfile)
             
+def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12):
+
+    fig,ax = plt.subplots()
+    fig.set_size_inches(2.5,5)
+    
+    bplot = ax.boxplot(data,patch_artist=True,medianprops=dict(color="k"),widths=0.8,showfliers=False)
+    
+    ax.scatter(np.random.uniform(0.65,1.35,len(data[0])),data[0],facecolor="w",edgecolor=color_ref,s=10)
+    ax.scatter(np.random.uniform(1.65,2.35,len(data[1])),data[1],facecolor="w",edgecolor=color_ref,s=10)
+    
+    for patch, color in zip(bplot['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.6)
+    
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(axis='both', color='0.8')
+    
+    y_min = np.min((np.min(data[0]),np.min(data[1])))
+    y_max = np.max((np.max(data[0]),np.max(data[1])))
+    delta_y = y_max-y_min
+    
+    if do_stats:
+        if paired:
+            p_value = wilcoxon(data[0],data[1],nan_policy="omit")[1]
+        else:
+            p_value = ranksums(data[0],data[1],nan_policy="omit")[1]
+        print(p_value)
+        ax.plot([1,1,2,2],[y_max+0.05*delta_y, y_max+0.1*delta_y, y_max+0.1*delta_y, y_max+0.05*delta_y],c="k",lw=1)
+        if p_value<=0.0001:
+            ax.text(1.5,y_max+0.12*delta_y,"***",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=0.001:
+            ax.text(1.5,y_max+0.12*delta_y,"**",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=0.01:
+            ax.text(1.5,y_max+0.12*delta_y,"*",horizontalalignment="center", fontsize=fs_text)
+        else:
+            ax.text(1.5,y_max+0.12*delta_y,"n.s.",horizontalalignment="center", fontsize=fs_text)
+    
+        y_lim = (y_min-0.05*delta_y,y_max+0.2*delta_y)
         
+    else:
+        y_lim = (y_min-0.05*delta_y,y_max+0.05*delta_y)
+    
+    ax.set_ylim(y_lim)
+    ax.set_xticklabels(labels,fontsize=fs,rotation=90)
+    ax.set_ylabel(y_label,fontsize=fs)
+    ax.tick_params(axis="y",labelsize=fs)
+    
+    plt.tight_layout()
+    plt.savefig(outfile)
