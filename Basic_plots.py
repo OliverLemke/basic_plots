@@ -859,3 +859,44 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
     
     plt.tight_layout()
     plt.savefig(outfile)
+    
+def plot_bar(data, keys, outfile="Out_bar.pdf", method="mean", sort_values=False, fs=15, rotation=90, y_label="y", grid=True):
+    
+    keys_sorted = list(keys.keys())
+    
+    df_red = data[keys_sorted]
+    
+    if method not in ["mean","median"]:
+        raise ValueError("method not found.")
+    
+    if method=="mean":
+        values = df_red.mean()
+        err = df_red.std()
+    elif method=="median":
+        values = df_red.median()
+        err = (df_red - df_red.median()).abs().median()
+    
+    if sort_values:
+        keys_sorted = list(values.sort_values(ascending=False).index)
+    
+    labels = [keys[key]["Label"] for key in keys_sorted]
+    colors = [keys[key]["Color"] for key in keys_sorted]
+    
+    fig,ax = plt.subplots()
+    fig.set_size_inches(6,4)
+    try:
+        ax.bar(np.arange(0,len(keys)),values[keys_sorted], yerr=err[keys_sorted], color=colors, edgecolor="k")
+    except:
+        ax.bar(np.arange(0,len(keys)),values[keys_sorted], yerr=err[keys_sorted], edgecolor="k")
+    ax.set_xticks(np.arange(0,len(keys)))
+    ax.set_xticklabels(labels, fontsize=fs, rotation = rotation)
+    ax.tick_params(axis="y",labelsize=fs)
+    ax.set_ylabel(y_label, fontsize=fs)
+    ax.set_xlim(-1,len(keys))
+    
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(axis='both', color='0.8')    
+        
+    plt.tight_layout()
+    plt.savefig(outfile)
