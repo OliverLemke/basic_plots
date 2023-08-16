@@ -27,7 +27,7 @@ from matplotlib.patches import Patch
 #%%
 
 # Histogram
-def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y", fs=15, fs_legend=15, n_bins=20, smoothing_factor=1e-10, legend_loc="upper left", x_lim=None, grid=True):
+def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y", fs=15, fs_legend=15, n_bins=20, smoothing_factor=1e-10, legend_loc="upper left", x_lim=None, grid=True,density=True):
     
     fig, ax = plt.subplots()
     fig.set_size_inches(6,4)
@@ -39,7 +39,7 @@ def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y"
     
     for key in keys:
 
-        hist = np.histogram(data_frame[key].values, range=x_lim, bins=n_bins, density=True)
+        hist = np.histogram(data_frame[key].values, range=x_lim, bins=n_bins, density=density)
         x = (hist[1][1:]+hist[1][:-1])/2
 
         spl = UnivariateSpline(np.insert(x,len(x),x_lim[1]),np.insert(hist[0],len(hist[0]),hist[0][-1]))
@@ -155,7 +155,7 @@ def fit_1_over_x(x,a,b,c):
     return a/(x+b)+c
 
 # Scatter    
-def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = True, spearman = True, kendall = False, p_pearson = None, p_spearman = None, p_kendall = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left", plot_1_over_x=False, highlight_size=150):
+def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = False, spearman = False, kendall = False, p_pearson = None, p_spearman = None, p_kendall = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left", plot_1_over_x=False, highlight_size=150, round_p=False):
 
     # Formatter for same precision labels
     # Add title
@@ -228,22 +228,41 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         text = ""
         if pearson:
             if p_pearson:
-                text += "R_Pearson = {0:.2f}\np_Pearson = {1:.2e}".format(pearson_corr[0],p_pearson)            
+                if round_p:
+                    text += "PearsonR = {0:.2f}\np adj. < 1E{1:.0f}".format(pearson_corr[0],np.ceil(np.log10(p_pearson)))
+                else:
+                    text += "PearsonR = {0:.2f}\np adj. = {1:.2e}".format(pearson_corr[0],p_pearson)            
             else:
-                text += "R_Pearson = {0:.2f}\np_Pearson = {1:.2e}".format(pearson_corr[0],pearson_corr[1])
+                if round_p:
+                    text += "PearsonR = {0:.2f}\np < 1E{1:.0f}".format(pearson_corr[0],np.ceil(np.log10(pearson_corr[1])))
+                else:
+                    text += "PearsonR = {0:.2f}\np = {1:.2e}".format(pearson_corr[0],pearson_corr[1])
         if pearson and spearman:
             text +="\n"
         if spearman:
             if p_spearman:
-                text += "R_Spearman = {0:.2f}\np_Spearman = {1:.2e}".format(spearman_corr[0],p_spearman)
+                if round_p:
+                    text += "SpearmanR = {0:.2f}\np adj. < 1E{1:.0f}".format(spearman_corr[0],np.ceil(np.log10(p_spearman)))
+                else:
+                    text += "SpearmanR = {0:.2f}\np adj. = {1:.2e}".format(spearman_corr[0],p_spearman)
             else:
-                text += "R_Spearman = {0:.2f}\np_Spearman = {1:.2e}".format(spearman_corr[0],spearman_corr[1])
+                if round_p:
+                    text += "SpearmanR = {0:.2f}\np < 1E{1:.0f}".format(spearman_corr[0],np.ceil(np.log10(spearman_corr[1])))
+                else:
+                    text += "SpearmanR = {0:.2f}\np = {1:.2e}".format(spearman_corr[0],spearman_corr[1])
         if (kendall and spearman) or (kendall and pearson):
             text +="\n"
+        if kendall:
             if p_kendall:
-                text += "Kendall_tau = {0:.2f}\np_Kendall = {1:.2e}".format(kendall_corr[0],p_kendall)
+                if round_p:
+                    text += "KendallTau = {0:.2f}\np adj. < 1E{1:.0f}".format(kendall_corr[0],np.ceil(np.log10(p_kendall)))
+                else:
+                    text += "KendallTau = {0:.2f}\np adj. = {1:.2e}".format(kendall_corr[0],p_kendall)
             else:
-                text += "Kendall_tau = {0:.2f}\np_Kendall = {1:.2e}".format(kendall_corr[0],kendall_corr[1])
+                if round_p:
+                    text += "KendallTau = {0:.2f}\np < 1E{1:.0f}".format(kendall_corr[0],np.ceil(np.log10(kendall_corr[1])))
+                else:
+                    text += "KendallTau = {0:.2f}\np = {1:.2e}".format(kendall_corr[0],kendall_corr[1])
         try:    
             anchored_text = AnchoredText(text, loc=text_loc, prop=dict(size=fs_text))
         except:
@@ -310,7 +329,7 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     plt.savefig(outfile, bbox_inches="tight")
     
-def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0):
+def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center"):
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
         if not p_values:
@@ -343,7 +362,7 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
     ax.set_xticklabels([keys[key]["Label"] for key in keys],rotation=90, fontsize=fs)
     
     ax.set_yticks(np.arange(len(ref_keys)))
-    ax.set_yticklabels([ref_keys[key]["Label"] for key in ref_keys], fontsize=fs,rotation=rotation, va="center")
+    ax.set_yticklabels([ref_keys[key]["Label"] for key in ref_keys], fontsize=fs,rotation=rotation, va=va)
     
     ax.tick_params(axis="both", labelsize=fs)
     ax.tick_params(axis="x", bottom=False)
@@ -357,7 +376,7 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
     cax = divider.append_axes("bottom", size="10%", pad=0.05)
     
     cbar = plt.colorbar(im, orientation="horizontal",cax=cax)
-    cbar.set_label(corr_type+" correlation", fontsize=fs)
+    cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label)
     cbar.ax.tick_params(axis="x", labelsize=fs, rotation=rotation_cb)
     
     plt.tight_layout()
@@ -751,7 +770,7 @@ def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_
         else:
             plt.savefig(outfile,bbox_inches="tight")  
             
-def plot_violin(data_frame, keys, ref_key, outfile="Out_violin.pdf", cut=0.25, fs=15, grid=True):
+def plot_violin_upper_lower(data_frame, keys, ref_key, outfile="Out_violin.pdf", cut=0.25, fs=15, grid=True, split=False, y_lim=None):
 
     ref = list(ref_key.keys())[0]
     
@@ -775,6 +794,17 @@ def plot_violin(data_frame, keys, ref_key, outfile="Out_violin.pdf", cut=0.25, f
     bg = ax.violinplot(data_to_plot, showmedians=False, widths=0.75, showextrema=False)
     pl = ax.violinplot(data_to_plot, showmedians=True, widths=0.75, showextrema=True, quantiles=[[0.25,0.75]]*5)
     
+    x_lim = (0.5,2*len(keys)+1.5)
+    
+    if split:
+        dy = np.max(data_to_plot[0])-np.min(data_to_plot[0])
+        for i in range(len(keys)):
+            ax.plot([1.5+(i*2),1.5+(i*2)],[np.min(data_to_plot[0])-(0.05)*dy,np.max(data_to_plot[0])+(0.05)*dy],c="k",ls=":")
+    
+    if not y_lim:
+        dy = np.max(data_to_plot[0])-np.min(data_to_plot[0])
+        y_lim = (np.min(data_to_plot[0])-(0.05)*dy,np.max(data_to_plot[0])+(0.05)*dy)
+    
     for pc in bg['bodies']:
         pc.set_facecolor("w")
         pc.set_edgecolor("w")
@@ -794,15 +824,17 @@ def plot_violin(data_frame, keys, ref_key, outfile="Out_violin.pdf", cut=0.25, f
     
     ax.set_xticks(list(range(1,(len(keys)*2+1)+1)))
     ax.set_xticklabels(labels,size=fs,rotation=45)
+    ax.set_xlim(x_lim)
     
     ax.tick_params(axis="y",labelsize=fs)
     ax.set_ylabel(ref_key[ref]["Label"],fontsize=fs,labelpad=10)
+    ax.set_ylim(y_lim)
     
     if grid:
         ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
         
-    handles = [Patch([0],[0],color=keys[key]["Color"],label=keys[key]["Label"]) for key in keys]
+    handles = [Patch([0],[0],color=keys[key]["Color"],label=keys[key]["Label"], alpha=0.5) for key in keys]
     legend = ax.legend(handles=handles, fontsize=fs, bbox_to_anchor=(0.5, -0.2), fancybox=True,shadow=True,loc="upper center")
     legend.get_frame().set_linewidth(2)
     
@@ -836,7 +868,7 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
             p_value = wilcoxon(data[0],data[1],nan_policy="omit")[1]
         else:
             p_value = ranksums(data[0],data[1],nan_policy="omit")[1]
-        print(p_value)
+        #print(p_value)
         ax.plot([1,1,2,2],[y_max+0.05*delta_y, y_max+0.1*delta_y, y_max+0.1*delta_y, y_max+0.05*delta_y],c="k",lw=1)
         if p_value<=0.0001:
             ax.text(1.5,y_max+0.12*delta_y,"***",horizontalalignment="center", fontsize=fs_text)
@@ -898,5 +930,42 @@ def plot_bar(data, keys, outfile="Out_bar.pdf", method="mean", sort_values=False
         ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')    
         
+    plt.tight_layout()
+    plt.savefig(outfile)
+
+def plot_violin2_list(data,outfile="Out_violin2_list.png", labels=("1","2"), y_label="y", colors=("C0","C1"), grid=True, fs=15, rotation=90):
+        
+    fig,ax = plt.subplots()
+    fig.set_size_inches(4,4)
+    bg = ax.violinplot(data, showmedians=False, widths=0.75, showextrema=False)
+    pl = ax.violinplot(data, showmedians=True, widths=0.75, showextrema=True, quantiles=[[0.25,0.75]]*2)
+    
+    for pc in bg['bodies']:
+        pc.set_facecolor("w")
+        pc.set_edgecolor("w")
+        pc.set_alpha(1)
+    
+    for pc, color in zip(pl['bodies'], colors):
+        pc.set_facecolor(color)
+        pc.set_edgecolor(color)
+        
+    pl['cmedians'].set_color(colors)
+    pl['cmedians'].set_linewidth(3)
+    pl['cbars'].set_edgecolor(colors)
+    pl['cmaxes'].set_alpha(0)
+    pl['cmins'].set_alpha(0)
+    pl['cquantiles'].set_color([el for item in [[color]*2 for color in colors] for el in item])
+    pl['cquantiles'].set_linestyle(":")
+    
+    ax.set_xticks([1,2])
+    ax.set_xticklabels(labels,size=fs,rotation=90)
+    
+    ax.tick_params(axis="y",labelsize=fs)
+    ax.set_ylabel(y_label,fontsize=fs,labelpad=10)
+    
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(axis='both', color='0.8')
+    
     plt.tight_layout()
     plt.savefig(outfile)
