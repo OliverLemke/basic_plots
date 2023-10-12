@@ -155,7 +155,7 @@ def fit_1_over_x(x,a,b,c):
     return a/(x+b)+c
 
 # Scatter    
-def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = False, spearman = False, kendall = False, p_pearson = None, p_spearman = None, p_kendall = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, legend_loc = "upper left", plot_1_over_x=False, highlight_size=150, round_p=False):
+def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, text_loc="lower right", color = "C0", pearson = False, spearman = False, kendall = False, p_pearson = None, p_spearman = None, p_kendall = None, x_lim = None, y_lim = None, plot_linreg = True, plot_xy = False, grid = True, highlight = None, highlight_label = False, legend_loc = "upper left", plot_1_over_x=False, highlight_size=150, round_p=False):
 
     # Formatter for same precision labels
     # Add title
@@ -180,18 +180,21 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     if highlight:
         for key in highlight:
-            ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=highlight_size, label=key)#,alpha=.6)
+            if highlight_label:
+                ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=highlight_size, label=key)#,alpha=.6)
+            else:
+                ax_scatter.scatter(data_to_plot.loc[highlight[key]["Indices"],key_x],data_to_plot.loc[highlight[key]["Indices"],key_y],facecolors=highlight[key]["Color"],edgecolors=highlight[key]["Color"], marker=".",s=highlight_size)
 
     if pearson:
         pearson_corr = pearsonr(data_to_plot[key_x],data_to_plot[key_y])
     else:
         pearson_corr = None
     if spearman:
-        spearman_corr = spearmanr(data_to_plot[key_x],data_to_plot[key_y])
+        spearman_corr = spearmanr(data_to_plot[key_x],data_to_plot[key_y], nan_policy="omit")
     else:
         spearman_corr = None
     if kendall:
-        kendall_corr = kendalltau(data_to_plot[key_x],data_to_plot[key_y])
+        kendall_corr = kendalltau(data_to_plot[key_x],data_to_plot[key_y], nan_policy="omit")
     else:
         kendall_corr = None
     
@@ -436,12 +439,25 @@ def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, o
     plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
-def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key_2, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic"):
+def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key_2, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center", discrete=None):
     
     if corr_type == "Spearman":
+        
+        if discrete:
+            keys_discrete = {}
+            for key in discrete:
+                keys_discrete.update({key:keys[key]})
+                keys.pop(key,"None")
+        
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
+        if discrete:
+            data_discrete = np.asarray([[kendalltau(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys_discrete])
+            data_to_plot = np.concatenate((data_to_plot,data_discrete),axis=0)
         if not p_values:
             p_values = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
+            if discrete:
+                p_discrete = np.asarray([[kendalltau(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys_discrete])
+                p_values = np.concatenate((p_values,p_discrete),axis=0)
             p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
         else:
             p_adjusted = p_values
@@ -454,7 +470,10 @@ def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key
             p_adjusted = p_values
     else:
          raise ValueError("corr_type not found") 
-         
+    
+    if discrete:
+        keys.update(keys_discrete)
+    
     if not v_lim:
         v_lim = (-np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10,np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10)
     
@@ -467,7 +486,7 @@ def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key
     ax.set_xticklabels([selections[selection] for selection in selections],rotation=90, fontsize=fs)
     
     ax.set_yticks(np.arange(len(keys)))
-    ax.set_yticklabels([keys[key]["Label"] for key in keys], fontsize=fs)
+    ax.set_yticklabels([keys[key]["Label"] for key in keys], fontsize=fs, rotation=rotation, va=va)
     
     ax.tick_params(axis="both", labelsize=fs)
     ax.tick_params(axis="x", bottom=False)
@@ -481,10 +500,10 @@ def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key
     cax = divider.append_axes("right", size="10%", pad=0.05)
     
     cbar = plt.colorbar(im, orientation="vertical", cax=cax)
-    cbar.set_label(corr_type+" correlation", fontsize=fs)
-    cbar.ax.tick_params(axis="y", labelsize=fs)
+    cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label)
+    cbar.ax.tick_params(axis="y", labelsize=fs, rotation=rotation_cb)
     
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
 def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation_grid,pdf", y_label = "y", n_columns = 4, fs = 15, n_rows = None, x_lim = None, y_lim = None, plot_linreg = True, legend_loc = "upper left"):
@@ -608,7 +627,7 @@ def plot_correlations_boxplot(data_frame, keys, ref_key, ind_key=0, selection=No
     plt.savefig(outfile, bbox_inches="tight")
 
 # Average
-def plot_binned_average(data_list, N=100, outfile="Out_binned_average", cmap = "viridis", fs = 15, x_label = "rel. Index", y_label="Mean(y)", boundaries=None, y_lim=None, grid = True):
+def plot_binned_average(data_list, N=100, outfile="Out_binned_average", cmap = "viridis", fs = 15, x_label = "rel. Index", y_label="Mean(y)", boundaries=None, y_lim=None, grid = True, return_data=False):
 
     data_grouped = np.asarray([[np.nanmean(item[int(np.ceil((n)*len(item)/N)):int(np.ceil((n+1)*len(item)/N))]) for n in range(N)] for item in data_list])
     mean_grouped = np.nanmean(data_grouped, axis=0)
@@ -665,6 +684,9 @@ def plot_binned_average(data_list, N=100, outfile="Out_binned_average", cmap = "
     cax.set_ylabel("Coefficient of variation", fontsize=fs, rotation=90)
     
     plt.savefig(outfile, bbox_inches="tight")
+    
+    if return_data:
+        return (mean_grouped, std_grouped, cv_grouped)
         
 # Enrichment    
 def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_enrichment.pdf", fs = 15, auc_column=None, cmap="Reds", splits=None, already_log10_transformed=False, v_lim=None, cbar_resolution = 4, num_legend_labels = 3, label=True):
@@ -841,12 +863,15 @@ def plot_violin_upper_lower(data_frame, keys, ref_key, outfile="Out_violin.pdf",
     plt.tight_layout()
     plt.savefig(outfile)
             
-def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12):
+def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12, title=None):
 
     fig,ax = plt.subplots()
     fig.set_size_inches(2.5,5)
     
-    bplot = ax.boxplot(data,patch_artist=True,medianprops=dict(color="k"),widths=0.8,showfliers=False)
+    data_wo_na = [[el for el in data[0] if not np.isnan(el)]]
+    data_wo_na.append([el for el in data[1] if not np.isnan(el)])
+    
+    bplot = ax.boxplot(data_wo_na,patch_artist=True,medianprops=dict(color="k"),widths=0.8,showfliers=False)
     
     ax.scatter(np.random.uniform(0.65,1.35,len(data[0])),data[0],facecolor="w",edgecolor=color_ref,s=10)
     ax.scatter(np.random.uniform(1.65,2.35,len(data[1])),data[1],facecolor="w",edgecolor=color_ref,s=10)
@@ -859,8 +884,8 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
         ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
     
-    y_min = np.min((np.min(data[0]),np.min(data[1])))
-    y_max = np.max((np.max(data[0]),np.max(data[1])))
+    y_min = np.min((np.nanmin(data[0]),np.nanmin(data[1])))
+    y_max = np.max((np.nanmax(data[0]),np.nanmax(data[1])))
     delta_y = y_max-y_min
     
     if do_stats:
@@ -870,11 +895,11 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
             p_value = ranksums(data[0],data[1],nan_policy="omit")[1]
         #print(p_value)
         ax.plot([1,1,2,2],[y_max+0.05*delta_y, y_max+0.1*delta_y, y_max+0.1*delta_y, y_max+0.05*delta_y],c="k",lw=1)
-        if p_value<=0.0001:
+        if p_value<=1e-4:
             ax.text(1.5,y_max+0.12*delta_y,"***",horizontalalignment="center", fontsize=fs_text)
-        elif p_value<=0.001:
+        elif p_value<=1e-3:
             ax.text(1.5,y_max+0.12*delta_y,"**",horizontalalignment="center", fontsize=fs_text)
-        elif p_value<=0.01:
+        elif p_value<=1e-2:
             ax.text(1.5,y_max+0.12*delta_y,"*",horizontalalignment="center", fontsize=fs_text)
         else:
             ax.text(1.5,y_max+0.12*delta_y,"n.s.",horizontalalignment="center", fontsize=fs_text)
@@ -888,6 +913,9 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
     ax.set_xticklabels(labels,fontsize=fs,rotation=90)
     ax.set_ylabel(y_label,fontsize=fs)
     ax.tick_params(axis="y",labelsize=fs)
+    
+    if title:
+        ax.set_title(title, fontsize=fs)
     
     plt.tight_layout()
     plt.savefig(outfile)
