@@ -27,7 +27,7 @@ from matplotlib.patches import Patch
 #%%
 
 # Histogram
-def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y", fs=15, fs_legend=15, n_bins=20, smoothing_factor=1e-10, legend_loc="upper left", x_lim=None, grid=True,density=True):
+def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y", fs=15, fs_legend=15, n_bins=20, smoothing_factor=1e-10, legend_loc="upper left", x_lim=None, y_lim=None, grid=True,density=True):
     
     fig, ax = plt.subplots()
     fig.set_size_inches(6,4)
@@ -61,6 +61,9 @@ def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y"
            
     ax.set_xlim(x_lim)           
     ax.set_ylim(0,max_y*1.1)
+    
+    if y_lim:
+        ax.set_ylim(y_lim)
 
     ax.set_xlabel(x_label, fontsize=fs)
     ax.set_ylabel(y_label, fontsize=fs)
@@ -163,6 +166,8 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     ## Use "if gradient" before "if highlight", use cmap -> Include colorbar!!!!
     ### Use scatter(x,y,c=value,cmap)
     ### Include colorbar
+    
+    # Include dict of dicts and then put everything in one loop, only modify, remove correlation, add hist 
     
     fig = plt.figure()
     fig.set_size_inches(7.5,7.5)
@@ -278,11 +283,12 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         ax_scatter.add_artist(anchored_text)
     
     if highlight:
-        try:
-            ax_scatter.legend(loc=legend_loc, fontsize=fs_text)
-        except:
-            print("legend_loc not found. Using upper left as a default.")
-            ax_scatter.legend(loc="upper_left", fontsize=fs_text)
+        if highlight_label:
+            try:
+                ax_scatter.legend(loc=legend_loc, fontsize=fs_text)
+            except:
+                print("legend_loc not found. Using upper left as a default.")
+                ax_scatter.legend(loc="upper_left", fontsize=fs_text)
         
     #
     ax_hist_x = fig.add_subplot(gs[0,0])
@@ -332,11 +338,132 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
     
     plt.savefig(outfile, bbox_inches="tight")
     
-def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center"):
+def plot_correlation_scatter_split(data_frame, keys, selection, outfile="Out_correlation_scatter.pdf", fs=20, fs_text=15, n_bins=20, smoothing_factor=1e-10, x_lim = None, y_lim = None, plot_xy = False, grid = True, legend_loc = "upper left"):
+     
+    fig = plt.figure()
+    fig.set_size_inches(7.5,7.5)
+    gs = gridspec.GridSpec(2,2,width_ratios=[10,2],height_ratios=[2,10], wspace=0.01, hspace=0.01)
+    
+    key_x = list(keys.keys())[0]
+    key_y = list(keys.keys())[1]
+    
+    data_to_plot = data_frame.copy()[[key_x,key_y]]
+    data_to_plot.dropna(inplace=True)
+    
+    ax_scatter = fig.add_subplot(gs[1,0])
+    ax_hist_x = fig.add_subplot(gs[0,0])
+    ax_hist_y = fig.add_subplot(gs[1,1])
+    ax_hist_x.axis("off")
+    ax_hist_y.axis("off")
+    
+    ax_scatter.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="w",edgecolors="w", marker=".",s=40)
+    
+    if not x_lim:
+        x_lim = (np.nanmin(data_to_plot[key_x])-(0.05*np.nanmax(data_to_plot[key_x])),np.nanmax(data_to_plot[key_x])+(0.05*np.nanmax(data_to_plot[key_x])))
+    ax_scatter.set_xlim(x_lim)
+        
+    if not y_lim:
+        y_lim = (np.nanmin(data_to_plot[key_y])-(0.05*np.nanmax(data_to_plot[key_y])),np.nanmax(data_to_plot[key_y])+(0.05*np.nanmax(data_to_plot[key_y])))
+    ax_scatter.set_ylim(y_lim)   
+    
+    hist_max_x = 0
+    hist_max_y = 0
+    
+    for key_sel,select in selection.items():
+        
+        indices = select["Indices"]
+        color = select["Color"]
+        plot_linreg = select["LinReg"]
+        plot_1_over_x = select["1_x"]
+        label = select["Label"]
+    
+        ax_scatter.scatter(data_to_plot.loc[indices,key_x],data_to_plot.loc[indices,key_y],facecolors="None",edgecolors=color, marker=".",s=40, label=label)#,alpha=.6)
+    
+        if plot_linreg:
+            coef = np.polyfit(data_to_plot.loc[indices,key_x],data_to_plot.loc[indices,key_y],1)
+            poly1d_fn = np.poly1d(coef)
+            ax_scatter.plot(x_lim,poly1d_fn(x_lim),c=color)
+        
+        if plot_1_over_x:
+            popt, pcov = curve_fit(fit_1_over_x, data_to_plot.loc[indices,key_x], data_to_plot.loc[indices,key_y])
+            xs = np.linspace(x_lim[0], x_lim[1],100)
+            ax_scatter.plot(xs,fit_1_over_x(xs, *popt),c="k")
+            
+        hist = np.histogram(data_to_plot.loc[indices,key_x].values, range=x_lim, bins=n_bins, density=True)
+        x = (hist[1][1:]+hist[1][:-1])/2
+        
+        spl = UnivariateSpline(np.insert(x,len(x),hist[1][-1]),np.insert(hist[0],len(hist[0]),hist[0][-1]))
+        spl.set_smoothing_factor(smoothing_factor)
+        
+        xs = np.linspace(x_lim[0],x_lim[1],1000)
+        
+        ax_hist_x.plot(xs, spl(xs), color=color)
+        ax_hist_x.fill_between(xs, np.zeros(len(xs)), spl(xs), color=color, alpha=.6)
+        ax_hist_x.plot([np.nanmedian(data_to_plot.loc[indices,key_x]),np.nanmedian(data_to_plot.loc[indices,key_x])],[0,np.nanmax(hist[0])*100],c=color,ls="--")
+        
+        hist_max_x = np.max((np.nanmax(hist[0]),hist_max_x))
+        
+        hist = np.histogram(data_to_plot.loc[indices,key_y].values, range=y_lim, bins=n_bins, density=True)
+        y = (hist[1][1:]+hist[1][:-1])/2
+        
+        spl = UnivariateSpline(np.insert(y,len(y),hist[1][-1]),np.insert(hist[0],len(hist[0]),hist[0][-1]))
+        spl.set_smoothing_factor(smoothing_factor)
+        
+        ys = np.linspace(y_lim[0],y_lim[1],1000)
+        
+        ax_hist_y.plot(spl(ys),ys, color=color)
+        ax_hist_y.fill_betweenx(ys,spl(ys),np.zeros(len(ys)), color=color, alpha=.6)
+        ax_hist_y.plot([0,np.nanmax(hist[0])*100],[np.nanmedian(data_to_plot.loc[indices,key_y]),np.nanmedian(data_to_plot.loc[indices,key_y])],c=color,ls="--")
+        
+        hist_max_y = np.max((np.nanmax(hist[0]),hist_max_y))
+        
+    ax_scatter.set_xlabel(keys[key_x]["Label"], fontsize=fs)
+    ax_scatter.set_ylabel(keys[key_y]["Label"], fontsize=fs)
+    ax_scatter.tick_params(axis="both", labelsize=fs)
+    ax_hist_x.set_xlim(x_lim)   
+    ax_hist_x.set_ylim(0,hist_max_x*1.1)
+    ax_hist_y.set_ylim(y_lim)     
+    ax_hist_y.set_xlim(0,hist_max_y*1.1)
+       
+    if plot_xy:
+        ax_scatter.plot(x_lim, x_lim, ls=":", c="k")
+        
+    if grid:
+        ax_scatter.set_axisbelow(True)
+        ax_scatter.grid(axis='both', color='0.8')
+        
+    try:
+        ax_scatter.legend(loc=legend_loc, fontsize=fs_text)
+    except:
+        print("legend_loc not found. Using upper left as a default.")
+        ax_scatter.legend(loc="upper_left", fontsize=fs_text)
+    
+    plt.savefig(outfile, bbox_inches="tight")
+    
+def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlation_heatmap.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center", plot_cbar=True, invert_cbar=False, discrete=False, discrete_first=False):
     if corr_type == "Spearman":
+        
+        if discrete:
+            keys_discrete = {}
+            for key in discrete:
+                keys_discrete.update({key:keys[key]})
+                keys.pop(key,"None")
+        
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys] for key_2 in ref_keys])
+        if discrete:
+            data_discrete = np.asarray([[kendalltau(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[0] for key_1 in keys_discrete] for key_2 in ref_keys])
+            if discrete_first:
+                data_to_plot = np.concatenate((data_discrete,data_to_plot),axis=1)
+            else:
+                data_to_plot = np.concatenate((data_to_plot,data_discrete),axis=1)
         if not p_values:
             p_values = np.asarray([[spearmanr(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[1] for key_1 in keys] for key_2 in ref_keys])
+            if discrete:
+                p_discrete = np.asarray([[kendalltau(data_frame.copy()[[key_1,key_2]].dropna()[key_1],data_frame.copy()[[key_1,key_2]].dropna()[key_2])[1] for key_1 in keys_discrete] for key_2 in ref_keys])
+                if discrete_first:
+                    p_values = np.concatenate((p_discrete,p_values),axis=1)
+                else:
+                    p_values = np.concatenate((p_values,p_discrete),axis=1)
             p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
         else:
             p_adjusted = p_values
@@ -349,6 +476,12 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
             p_adjusted = p_values
     else:
          raise ValueError("corr_type not found")   
+
+    if discrete:
+        keys.update(keys_discrete)
+        if discrete_first:
+            for key in discrete[::-1]:
+                keys = {key: keys.pop(key), **keys}
     
     if not v_lim:
         v_lim = (-np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10,np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10)
@@ -360,6 +493,10 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
     
     #ax = fig.add_subplot(gs[0,0])
     im = ax.matshow(data_to_plot, cmap=cmap, vmin=v_lim[0], vmax=v_lim[1])
+    
+    #if invert_cbar:
+    #    im2 = ax.matshow([[-1*data_to_plot[0,0]]], cmap = cmap+"_r", vmin =v_lim[0], vmax = v_lim[1])
+    #    im2.set_visible(False)
     
     ax.set_xticks(np.arange(len(keys)))
     ax.set_xticklabels([keys[key]["Label"] for key in keys],rotation=90, fontsize=fs)
@@ -375,17 +512,30 @@ def plot_correlations_heatmap(data_frame, keys, ref_keys, outfile="Out_correlati
             if p_adjusted[ind2,ind]<alpha:
                 ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
     
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("bottom", size="10%", pad=0.05)
+    if plot_cbar:
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("bottom", size="10%", pad=0.05)
+        
+        #if invert_cbar:
+        #    cbar = plt.colorbar(im2, orientation="horizontal",cax=cax)
+        #    tks = cbar.get_ticks()
+        #    cbar.set_ticklabels(tks[::-1])
+        #    cbar.ax.tick_params(axis="x", labelsize=fs, rotation=rotation_cb)
+
+        #else:
+        cbar = plt.colorbar(im, orientation="horizontal",cax=cax)
+        cbar.ax.tick_params(axis="x", labelsize=fs, rotation=rotation_cb)
+        
+        if discrete:
+            cbar.set_label("Correlation", fontsize=fs, rotation=rotation_cb_label)
+        else:
+            cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label)
+            
     
-    cbar = plt.colorbar(im, orientation="horizontal",cax=cax)
-    cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label)
-    cbar.ax.tick_params(axis="x", labelsize=fs, rotation=rotation_cb)
-    
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
-def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0):
+def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, plot_cbar=True, ha="center"):
     # include kendall-tau
     if corr_type == "Spearman":
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column)] for key in keys])
@@ -413,7 +563,7 @@ def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, o
     im = ax.matshow(data_to_plot, cmap=cmap, vmin=v_lim[0], vmax=v_lim[1])
     
     ax.set_xticks(np.arange(len(selections)))
-    ax.set_xticklabels([selections[selection] for selection in selections],rotation=rotation, fontsize=fs)
+    ax.set_xticklabels([selections[selection] for selection in selections],rotation=rotation, fontsize=fs, ha=ha)
     
     ax.set_yticks(np.arange(len(keys)))
     ax.set_yticklabels([keys[key]["Label"] for key in keys], fontsize=fs)
@@ -425,21 +575,19 @@ def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, o
         for ind2 in range(len(keys)):
             if p_adjusted[ind2,ind]<alpha:
                 ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
-                
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="10%", pad=0.05)
     
-    #im_ratio = data_to_plot.shape[0]/data_to_plot.shape[1]
-    #cbar = plt.colorbar(im, fraction=0.046*im_ratio, pad=0.04, orientation="vertical")
+    if plot_cbar:
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="10%", pad=0.05)
+        
+        cbar = plt.colorbar(im, orientation="vertical", cax=cax)
+        cbar.set_label(corr_type+" correlation", fontsize=fs)
+        cbar.ax.tick_params(axis="y", labelsize=fs, rotation=rotation_cb)
     
-    cbar = plt.colorbar(im, orientation="vertical", cax=cax)
-    cbar.set_label(corr_type+" correlation", fontsize=fs)
-    cbar.ax.tick_params(axis="y", labelsize=fs, rotation=rotation_cb)
-    
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
-def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key_2, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center", discrete=None):
+def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key_2, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center", discrete=None, discrete_first=False, plot_cbar=True):
     
     if corr_type == "Spearman":
         
@@ -452,12 +600,18 @@ def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key
         data_to_plot = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
         if discrete:
             data_discrete = np.asarray([[kendalltau(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[0] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys_discrete])
-            data_to_plot = np.concatenate((data_to_plot,data_discrete),axis=0)
+            if discrete_first:
+                data_to_plot = np.concatenate((data_discrete,data_to_plot),axis=0)
+            else:
+                data_to_plot = np.concatenate((data_to_plot,data_discrete),axis=0)
         if not p_values:
             p_values = np.asarray([[spearmanr(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys])
             if discrete:
                 p_discrete = np.asarray([[kendalltau(data_frame.copy()[[column,ref_key]].dropna()[column],data_frame.copy()[[column,ref_key]].dropna()[ref_key])[1] for selection in selections for column in data_frame.columns if re.search(selection,column) and re.search(key,column) for ref_key in data_frame.columns if re.search(selection,ref_key) and re.search(key_2,ref_key)] for key in keys_discrete])
-                p_values = np.concatenate((p_values,p_discrete),axis=0)
+                if discrete_first:
+                    p_values = np.concatenate((p_discrete,p_values),axis=0)
+                else:
+                    p_values = np.concatenate((p_values,p_discrete),axis=0)
             p_adjusted = multipletests(p_values.reshape(-1),alpha=alpha,method="fdr_bh")[1].reshape(np.shape(p_values))
         else:
             p_adjusted = p_values
@@ -473,6 +627,9 @@ def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key
     
     if discrete:
         keys.update(keys_discrete)
+        if discrete_first:
+            for key in discrete[::-1]:
+                keys = {key: keys.pop(key), **keys}
     
     if not v_lim:
         v_lim = (-np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10,np.ceil(10*np.nanmax(np.abs(data_to_plot)))/10)
@@ -496,12 +653,16 @@ def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key
             if p_adjusted[ind2,ind]<alpha:
                 ax.plot(ind,ind2, c="k", marker=(8, 2, 0))
     
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="10%", pad=0.05)
-    
-    cbar = plt.colorbar(im, orientation="vertical", cax=cax)
-    cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label)
-    cbar.ax.tick_params(axis="y", labelsize=fs, rotation=rotation_cb)
+    if plot_cbar:
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="10%", pad=0.05)
+        
+        cbar = plt.colorbar(im, orientation="vertical", cax=cax)
+        if discrete:
+            cbar.set_label("Correlation", fontsize=fs, rotation=rotation_cb_label)
+        else:
+            cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label)
+        cbar.ax.tick_params(axis="y", labelsize=fs, rotation=rotation_cb)
     
     #plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
@@ -512,7 +673,7 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
         n_rows = int(np.ceil(len(keys)/n_columns))
         
     if n_columns * n_rows < len(keys):
-        raise ValueError("Grid resolution not fitting a plots. Increase n_columns or n_rows.")
+        raise ValueError("Grid resolution not fitting all plots. Increase n_columns or n_rows.")
     
     key_x = list(ref_key.keys())[0]
     
@@ -618,7 +779,7 @@ def plot_correlations_boxplot(data_frame, keys, ref_key, ind_key=0, selection=No
     if not y_lim:
         y_lim=((-1)*np.nanmax(np.abs(collection_R))-0.05*np.nanmax(np.abs(collection_R)),np.nanmax(np.abs(collection_R))+0.05*np.nanmax(np.abs(collection_R)))
     
-    ax.set_xticklabels(list(keys.keys()),rotation=90, fontsize=fs)
+    ax.set_xticklabels([keys[key]["Label"] for key in keys],rotation=90, fontsize=fs)
     ax.set_ylim(y_lim)
     ax.set_ylabel(corr_type+"R "+ref_key[key_x]["Label"], fontsize=fs)
     
@@ -689,7 +850,7 @@ def plot_binned_average(data_list, N=100, outfile="Out_binned_average", cmap = "
         return (mean_grouped, std_grouped, cv_grouped)
         
 # Enrichment    
-def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_enrichment.pdf", fs = 15, auc_column=None, cmap="Reds", splits=None, already_log10_transformed=False, v_lim=None, cbar_resolution = 4, num_legend_labels = 3, label=True):
+def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_enrichment.pdf", fs = 15, auc_column=None, cmap="Reds", splits=None, already_log10_transformed=False, v_lim=None, cbar_resolution = 4, num_legend_labels = 3, label=True, s_scale=1):
 
     if not already_log10_transformed:
         data_frame = data_frame.copy()
@@ -707,16 +868,19 @@ def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_e
     fig,ax=plt.subplots()
     
     if auc_column:
-        fig.set_size_inches(2.5,len(keys)/2)
+        fig.set_size_inches(1.5,len(keys)/2)
     else:
         fig.set_size_inches(0.5,len(keys)/2)
     
     sc = ax.scatter(np.ones(len(keys))*(-1),np.ones(len(keys))*(-1),s=data_frame.loc[list(keys.keys()),size_column],color="k", alpha=0.5)
     
     for ind,index in enumerate(keys.keys()):
-        ax.scatter(1,ind,s=data_frame.loc[index,size_column],color=cm(-1*data_frame.loc[index,p_column]/dv))
+        ax.scatter(1,ind,s=data_frame.loc[index,size_column]*s_scale,color=cm(-1*data_frame.loc[index,p_column]/dv))
         if auc_column:
-            ax.text(1.012,ind,"AUC = {:.2f}".format(data_frame.loc[index,auc_column]),verticalalignment="center",fontsize=fs)
+            ax.text(1.02,ind,"{:.2f}".format(data_frame.loc[index,auc_column]),verticalalignment="center",fontsize=fs)
+    
+    if auc_column:
+        ax.text(1.02,-1,"AUC", fontsize=fs, verticalalignment="center")
             
     ax.set_yticks(np.arange(0,len(keys)))
     ax.set_yticklabels([item[1] for item in keys.items()], fontsize=fs)
@@ -724,7 +888,7 @@ def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_e
     ax.set_xticks([])
     ax.set_ylim(len(keys)-0.5,-0.5)
     if auc_column:
-        ax.set_xlim(0.99,1.08)
+        ax.set_xlim(0.99,1.05)
     else:
         ax.set_xlim(0.99,1.01)
         
@@ -757,10 +921,10 @@ def plot_enrichment(data_frame, keys, p_column, size_column, outfile = "../Out_e
     plt.savefig(outfile,bbox_inches="tight")
        
 def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_AUC.pdf", fs=15, grid=True, fs_legend=15):
-        
-    indices = [index for index in data_frame_ref_keys.index if index in data_frame_keys.index]
-    
+            
     for ind,ref_key in enumerate(ref_keys):
+        
+        indices = [index for index in data_frame_ref_keys.index if index in data_frame_keys.index and ~np.isnan(data_frame_ref_keys.loc[index,ref_key])]
         
         fig,ax = plt.subplots()
         fig.set_size_inches(5,5)
@@ -782,6 +946,61 @@ def plot_AUC(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_
         ax.set_xlim(0,1)
         ax.set_ylim(0,1)
         plt.legend(loc="lower right",fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
+        
+        if grid:
+            ax.set_axisbelow(True)
+            ax.grid(axis='both', color='0.8')
+        
+        if len(ref_keys)>1:
+            plt.savefig(outfile[:-4]+"_"+str(ind)+outfile[-4:],bbox_inches="tight")  
+        else:
+            plt.savefig(outfile,bbox_inches="tight")  
+            
+def plot_EF(data_frame_keys, keys, data_frame_ref_keys, ref_keys, outfile="Out_EF.pdf", fs=15, grid=True, fs_legend=15, y_lim=None, legend_loc="upper right"):
+            
+    for ind,ref_key in enumerate(ref_keys):
+        
+        indices = [index for index in data_frame_ref_keys.index if index in data_frame_keys.index and ~np.isnan(data_frame_ref_keys.loc[index,ref_key])]
+        
+        y_min = 0
+        y_max = 0
+        
+        fig,ax = plt.subplots()
+        fig.set_size_inches(5,5)
+        
+        indices_sorted = data_frame_ref_keys.loc[indices,ref_key].sort_values(ascending=False).index
+        rank = np.arange(1,len(indices_sorted)+1)
+        
+        for key in keys:        
+                        
+            enrichment = np.log10(np.cumsum(data_frame_keys.loc[indices_sorted,key].values)/(rank*np.sum(data_frame_keys.loc[indices_sorted,key].values)/np.max(rank)))
+            
+            filter_inf = np.isinf(enrichment)
+            
+            ax.plot(rank[~filter_inf],enrichment[~filter_inf], lw=3, label= keys[key]["Label"],c=keys[key]["Color"],zorder=20)
+            
+            y_min = np.min((y_min,np.min(enrichment[~filter_inf])))
+            y_max = np.max((y_max,np.max(enrichment[~filter_inf])))
+                
+        if not y_lim:
+            y_lim = (1.05*y_min, 1.05*y_max)
+            
+        # Plot reference line
+        ax.plot([1,len(indices_sorted)],[0,0],ls="--",c="k",lw=3)
+        
+        # Set layout
+        ax.set_xlabel("Rank",fontsize=fs)
+        ax.set_ylabel("log10(Enrichment Factor)",fontsize=fs)
+        ax.set_xticks([1,len(indices_sorted)])
+        ax.tick_params(axis="both",labelsize=fs)
+        ax.set_xlim(0,len(indices_sorted))
+        ax.set_ylim(y_lim)
+        
+        try:
+            plt.legend(loc=legend_loc,fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
+        except:
+            print("legend_loc not found. Using upper left as a default.")
+            plt.legend(loc="upper right",fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
         
         if grid:
             ax.set_axisbelow(True)
@@ -863,7 +1082,14 @@ def plot_violin_upper_lower(data_frame, keys, ref_key, outfile="Out_violin.pdf",
     plt.tight_layout()
     plt.savefig(outfile)
             
-def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12, title=None):
+def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12, title=None, separate_ref_color=True):    
+
+    if separate_ref_color:
+        color_ref_0 = color_ref
+        color_ref_1 = color_ref
+    else:
+        color_ref_0 = colors[0]
+        color_ref_1 = colors[1]
 
     fig,ax = plt.subplots()
     fig.set_size_inches(2.5,5)
@@ -873,8 +1099,8 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
     
     bplot = ax.boxplot(data_wo_na,patch_artist=True,medianprops=dict(color="k"),widths=0.8,showfliers=False)
     
-    ax.scatter(np.random.uniform(0.65,1.35,len(data[0])),data[0],facecolor="w",edgecolor=color_ref,s=10)
-    ax.scatter(np.random.uniform(1.65,2.35,len(data[1])),data[1],facecolor="w",edgecolor=color_ref,s=10)
+    ax.scatter(np.random.uniform(0.65,1.35,len(data[0])),data[0],facecolor="w",edgecolor=color_ref_0,s=10)
+    ax.scatter(np.random.uniform(1.65,2.35,len(data[1])),data[1],facecolor="w",edgecolor=color_ref_1,s=10)
     
     for patch, color in zip(bplot['boxes'], colors):
         patch.set_facecolor(color)
@@ -961,12 +1187,21 @@ def plot_bar(data, keys, outfile="Out_bar.pdf", method="mean", sort_values=False
     plt.tight_layout()
     plt.savefig(outfile)
 
-def plot_violin2_list(data,outfile="Out_violin2_list.png", labels=("1","2"), y_label="y", colors=("C0","C1"), grid=True, fs=15, rotation=90):
-        
+def plot_violin_quantiles(data,outfile="Out_violin2_list.png", labels=("1","2"), y_label="y", colors=("C0","C1"), grid=True, fs=15, rotation=90, y_lim = None, lines = None, fs_text=15,title=None, fs_title=15, calc_widths=False):
+    
+    ### For width add density normailzation
+    
+    if calc_widths:
+        flat = [el for item in data for el in item]
+        widths = [np.max(np.histogram(data[ind],bins=10,range=(np.min(flat),np.max(flat)))[0]) for ind in range(len(data))]
+        widths = widths/max(widths)*0.75
+    else:
+        widths = 0.75
+    
     fig,ax = plt.subplots()
     fig.set_size_inches(4,4)
-    bg = ax.violinplot(data, showmedians=False, widths=0.75, showextrema=False)
-    pl = ax.violinplot(data, showmedians=True, widths=0.75, showextrema=True, quantiles=[[0.25,0.75]]*2)
+    bg = ax.violinplot(data, showmedians=False, widths=widths, showextrema=False)
+    pl = ax.violinplot(data, showmedians=True, widths=widths, showextrema=True, quantiles=[[0.25,0.75]]*len(labels))
     
     for pc in bg['bodies']:
         pc.set_facecolor("w")
@@ -985,15 +1220,144 @@ def plot_violin2_list(data,outfile="Out_violin2_list.png", labels=("1","2"), y_l
     pl['cquantiles'].set_color([el for item in [[color]*2 for color in colors] for el in item])
     pl['cquantiles'].set_linestyle(":")
     
-    ax.set_xticks([1,2])
-    ax.set_xticklabels(labels,size=fs,rotation=90)
+    if title:
+        ax.set_title(title,fontsize=fs_title)
+    
+    ax.set_xticks(np.arange(1,len(labels)+1,1))
+    ax.set_xticklabels(labels,size=fs,rotation=rotation, ha='right', va='top')
     
     ax.tick_params(axis="y",labelsize=fs)
     ax.set_ylabel(y_label,fontsize=fs,labelpad=10)
+    
+    if y_lim:
+        ax.set_ylim(y_lim)          
     
     if grid:
         ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
     
+    if lines:
+        for el in lines:
+            ax.plot([el[0],el[1]],[el[2],el[2]],c="k")
+            ax.text((el[0]+el[1])/2,el[2],el[3],horizontalalignment="center", fontsize=fs_text)
+    
     plt.tight_layout()
     plt.savefig(outfile)
+    
+def plot_violin_grid(data_dict, keys, style_dict, legend_dict=None, outfile="Out_violin2_grid.png", labels=("1","2"), y_label="y", colors=None, grid=True, fs=15, rotation=90, y_lim = None, lines = None, fs_text=15,title=None, fs_title=15, n_columns=2, dy=0.1, calc_widths=False):
+    
+    n_rows = int(np.ceil(len(data_dict)/n_columns))
+            
+    fig = plt.figure()
+    fig.set_size_inches((n_columns*3)+1.2,(n_rows*3)+0.9)
+    gs = gridspec.GridSpec(n_rows+1, n_columns+1, wspace=0.4, hspace=0.4, width_ratios=[1]+[10]*n_columns, height_ratios=[10]*n_rows+[3])
+    
+    for key in data_dict:
+        
+        data = [data_dict[key][key_y][~np.isnan(data_dict[key][key_y])] for key_y in keys]        
+        title = style_dict[key]["Label"]
+        colors = [style_dict[key]["Color"]]*len(data)
+        ind = style_dict[key]["Order"]
+        
+        if calc_widths:
+            flat = [el for item in data for el in item]
+            widths = [np.max(np.histogram(data[ind],bins=10, range=(np.min(flat),np.max(flat)))[0]) for ind in range(len(data))]
+            widths = widths/max(widths)*0.75
+        else:
+            widths = 0.75
+    
+        ax = fig.add_subplot(gs[int(np.floor(ind/n_columns)),int(np.mod(ind,n_columns))+1])  
+        
+        bg = ax.violinplot(data, showmedians=False, widths=widths, showextrema=False)
+        pl = ax.violinplot(data, showmedians=True, widths=widths, showextrema=True, quantiles=[[0.25,0.75]]*len(labels))
+        
+        for pc in bg['bodies']:
+            pc.set_facecolor("w")
+            pc.set_edgecolor("w")
+            pc.set_alpha(1)
+        
+        for pc, color in zip(pl['bodies'], colors):
+            pc.set_facecolor(color)
+            pc.set_edgecolor(color)
+            
+        pl['cmedians'].set_color(colors)
+        pl['cmedians'].set_linewidth(3)
+        pl['cbars'].set_edgecolor(colors)
+        pl['cmaxes'].set_alpha(0)
+        pl['cmins'].set_alpha(0)
+        pl['cquantiles'].set_color([el for item in [[color]*2 for color in colors] for el in item])
+        pl['cquantiles'].set_linestyle(":")
+        
+        if title:
+            ax.set_title(title,fontsize=fs_title)
+        
+        ax.set_xticks(np.arange(1,len(labels)+1,1))
+        if int(np.floor(ind/n_columns)) == n_rows-1:
+            ax.set_xticklabels(labels,size=fs,rotation=rotation, ha='center', va='top')
+        else: 
+            ax.set_xticklabels([])
+        
+        ax.tick_params(axis="y",labelsize=fs)
+        
+        if y_lim:
+            ax.set_ylim(y_lim)          
+        
+        if grid:
+            ax.set_axisbelow(True)
+            ax.grid(axis='both', color='0.8')
+        
+    fig.text(dy, 0.5, y_label, rotation="vertical", va="center", fontsize=fs)
+    
+    if legend_dict:
+        legend_elements = [Patch(facecolor=legend_dict[key]["Color"],label=legend_dict[key]["Label"]) for key in legend_dict if key != "Columns"]
+        fig.legend(loc="lower center", handles=legend_elements, ncol=legend_dict["Columns"],fontsize=fs)
+
+    plt.tight_layout()
+    plt.savefig(outfile, bbox_inches="tight")    
+
+def plot_completeness(data,label_dict,outfile="Completeness.pdf",cmap="binary",fs=15,color_counts_y = "k", color_counts_x = "k", highlight_quartiles=True, color_highlight="#808B96", xlabel = "x", sort_values = True):
+
+    if sort_values:
+        data = data[data.sum().sort_values().index[::-1]]
+    
+    fig = plt.figure()
+    fig.set_size_inches(8,8)
+    gs = gridspec.GridSpec(2,2,width_ratios=[10,2],height_ratios=[2,10], wspace=0.05, hspace=0.05)
+    
+    ax_comp = fig.add_subplot(gs[1,0])
+    ax_comp.matshow(data.values,aspect="auto",cmap=cmap)
+    
+    #ax_comp.set_xticks([0,len(data.T)-1])
+    ax_comp.set_xticks([])
+    ax_comp.set_xlabel(xlabel,fontsize=fs)
+    ax_comp.tick_params(axis="x",labelsize=fs)
+    ax_comp.set_yticks(range(0,len(data)))
+    ax_comp.set_yticklabels([label_dict[index] for index in list(data.index)],fontsize=fs)
+    ax_comp.xaxis.tick_bottom()
+    
+    ax_counts_y = fig.add_subplot(gs[1,1])
+    ax_counts_y.barh(range(0,len(data)),data.T.sum().values,height=1,color=color_counts_y,align="edge")
+    ax_counts_y.set_xlabel("Counts",fontsize=fs)
+    ax_counts_y.set_xticks([0,len(data.T)-1])
+    ax_counts_y.tick_params(axis="x",labelsize=fs)
+    ax_counts_y.set_yticks([])
+    
+    ax_counts_y.set_ylim([len(data),0])
+    ax_counts_y.set_xlim([0,len(data.T)-1])
+    
+    ax_counts_x = fig.add_subplot(gs[0,0])
+    ax_counts_x.bar(range(0,len(data.T)),data.sum().values,width=1,color=color_counts_x)
+    ax_counts_x.set_yticks([1,len(data)])
+    ax_counts_x.set_ylabel("Counts",fontsize=fs)
+    ax_counts_x.tick_params(axis="y",labelsize=fs)
+    ax_counts_x.set_xticks([])
+    
+    ax_counts_x.set_xlim([0,len(data.T)-1])
+    ax_counts_x.set_ylim([0,len(data)])
+    
+    if highlight_quartiles:
+        for split in [.25,.5,.75]:
+            ax_counts_y.plot([split*len(data.T),split*len(data.T)],[0,len(data)],ls=":",c=color_highlight,lw=3)
+            ax_counts_x.plot([split*len(data.T),split*len(data.T)],[0,len(data)],ls=":",c=color_highlight,lw=3)
+    
+    plt.savefig(outfile,bbox_inches="tight")
