@@ -237,40 +237,40 @@ def plot_correlation_scatter(data_frame, keys, outfile="Out_correlation_scatter.
         if pearson:
             if p_pearson:
                 if round_p:
-                    text += "PearsonR = {0:.2f}\np adj. < 1E{1:.0f}".format(pearson_corr[0],np.ceil(np.log10(p_pearson)))
+                    text += r"Pearson $r$ = {0:.2f}".format(pearson_corr[0])+"\np adj. < 1E{0:.0f}".format(np.ceil(np.log10(p_pearson)))
                 else:
-                    text += "PearsonR = {0:.2f}\np adj. = {1:.2e}".format(pearson_corr[0],p_pearson)            
+                    text += r"Pearson $r$ = {0:.2f}".format(pearson_corr[0])+"\np adj. = {0:.2e}".format(p_pearson)            
             else:
                 if round_p:
-                    text += "PearsonR = {0:.2f}\np < 1E{1:.0f}".format(pearson_corr[0],np.ceil(np.log10(pearson_corr[1])))
+                    text += r"Pearson $r$ = {0:.2f}".format(pearson_corr[0])+"\np < 1E{0:.0f}".format(np.ceil(np.log10(pearson_corr[1])))
                 else:
-                    text += "PearsonR = {0:.2f}\np = {1:.2e}".format(pearson_corr[0],pearson_corr[1])
+                    text += r"Pearson $r$ = {0:.2f}".format(pearson_corr[0])+"\np = {0:.2e}".format(pearson_corr[1])
         if pearson and spearman:
             text +="\n"
         if spearman:
             if p_spearman:
                 if round_p:
-                    text += "SpearmanR = {0:.2f}\np adj. < 1E{1:.0f}".format(spearman_corr[0],np.ceil(np.log10(p_spearman)))
+                    text += r"Spearman $\rho$ = {0:.2f}".format(spearman_corr[0])+"\np adj. < 1E{0:.0f}".format(np.ceil(np.log10(p_spearman)))
                 else:
-                    text += "SpearmanR = {0:.2f}\np adj. = {1:.2e}".format(spearman_corr[0],p_spearman)
+                    text += r"Spearman $\rho$ = {0:.2f}".format(spearman_corr[0])+"\np adj. = {0:.2e}".format(p_spearman)
             else:
                 if round_p:
-                    text += "SpearmanR = {0:.2f}\np < 1E{1:.0f}".format(spearman_corr[0],np.ceil(np.log10(spearman_corr[1])))
+                    text += r"Spearman $\rho$ = {0:.2f}".format(spearman_corr[0])+"\np < 1E{0:.0f}".format(np.ceil(np.log10(spearman_corr[1])))
                 else:
-                    text += "SpearmanR = {0:.2f}\np = {1:.2e}".format(spearman_corr[0],spearman_corr[1])
+                    text += r"Spearman $\rho$ = {0:.2f}".format(spearman_corr[0])+"\np = {0:.2e}".format(spearman_corr[1])
         if (kendall and spearman) or (kendall and pearson):
             text +="\n"
         if kendall:
             if p_kendall:
                 if round_p:
-                    text += "KendallTau = {0:.2f}\np adj. < 1E{1:.0f}".format(kendall_corr[0],np.ceil(np.log10(p_kendall)))
+                    text += r"Kendall $\tau$ = {0:.2f}".format(kendall_corr[0])+"\np adj. < 1E{0:.0f}".format(np.ceil(np.log10(p_kendall)))
                 else:
-                    text += "KendallTau = {0:.2f}\np adj. = {1:.2e}".format(kendall_corr[0],p_kendall)
+                    text += r"Kendall $\tau$ = {0:.2f}".format(kendall_corr[0])+"\np adj. = {0:.2e}".format(p_kendall)
             else:
                 if round_p:
-                    text += "KendallTau = {0:.2f}\np < 1E{1:.0f}".format(kendall_corr[0],np.ceil(np.log10(kendall_corr[1])))
+                    text += r"Kendall $\tau$ = {0:.2f}".format(kendall_corr[0])+"\np < 1E{0:.0f}".format(np.ceil(np.log10(kendall_corr[1])))
                 else:
-                    text += "KendallTau = {0:.2f}\np = {1:.2e}".format(kendall_corr[0],kendall_corr[1])
+                    text += r"Kendall $\tau$ = {0:.2f}".format(kendall_corr[0])+"\np = {0:.2e}".format(kendall_corr[1])
         try:    
             anchored_text = AnchoredText(text, loc=text_loc, prop=dict(size=fs_text))
         except:
@@ -781,8 +781,11 @@ def plot_correlations_boxplot(data_frame, keys, ref_key, ind_key=0, selection=No
     
     ax.set_xticklabels([keys[key]["Label"] for key in keys],rotation=90, fontsize=fs)
     ax.set_ylim(y_lim)
-    ax.set_ylabel(corr_type+"R "+ref_key[key_x]["Label"], fontsize=fs)
-    
+    if corr_type=="Pearson":
+        ax.set_ylabel(corr_type+"r "+ref_key[key_x]["Label"], fontsize=fs)
+    elif corr_type=="Spearman":
+        ax.set_ylabel(corr_type+r" $\rho$ "+ref_key[key_x]["Label"], fontsize=fs)
+        
     ax.tick_params(axis="y",labelsize=fs)
     
     plt.savefig(outfile, bbox_inches="tight")
@@ -1244,7 +1247,7 @@ def plot_violin_quantiles(data,outfile="Out_violin2_list.png", labels=("1","2"),
     plt.tight_layout()
     plt.savefig(outfile)
     
-def plot_violin_grid(data_dict, keys, style_dict, legend_dict=None, outfile="Out_violin2_grid.png", labels=("1","2"), y_label="y", colors=None, grid=True, fs=15, rotation=90, y_lim = None, lines = None, fs_text=15,title=None, fs_title=15, n_columns=2, dy=0.1, calc_widths=False):
+def plot_violin_grid(data_dict, keys, style_dict, legend_dict=None, outfile="Out_violin2_grid.png", labels=("1","2"), y_label="y", colors=None, grid=True, fs=15, rotation=90, y_lim = None, lines = None, fs_text=15, fs_title=15, n_columns=2, dy=0.1, calc_widths=False):
     
     n_rows = int(np.ceil(len(data_dict)/n_columns))
             
@@ -1338,12 +1341,12 @@ def plot_completeness(data,label_dict,outfile="Completeness.pdf",cmap="binary",f
     ax_counts_y = fig.add_subplot(gs[1,1])
     ax_counts_y.barh(range(0,len(data)),data.T.sum().values,height=1,color=color_counts_y,align="edge")
     ax_counts_y.set_xlabel("Counts",fontsize=fs)
-    ax_counts_y.set_xticks([0,len(data.T)-1])
+    ax_counts_y.set_xticks([0,len(data.T)])
     ax_counts_y.tick_params(axis="x",labelsize=fs)
     ax_counts_y.set_yticks([])
     
     ax_counts_y.set_ylim([len(data),0])
-    ax_counts_y.set_xlim([0,len(data.T)-1])
+    ax_counts_y.set_xlim([0,len(data.T)])
     
     ax_counts_x = fig.add_subplot(gs[0,0])
     ax_counts_x.bar(range(0,len(data.T)),data.sum().values,width=1,color=color_counts_x)
