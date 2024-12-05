@@ -77,7 +77,7 @@ def plot_hist(data_frame, keys, outfile="Out_hist.pdf", x_label="x", y_label="y"
     legend.get_frame().set_linewidth(2)
     legend.set_zorder(20)
 
-    for legobj in legend.legendHandles:
+    for legobj in legend.legend_handles:
         legobj.set_linewidth(5)
 
     plt.tight_layout()
@@ -148,7 +148,7 @@ def plot_hist_selection(data_frame, selections, ref_key, outfile="Out_hist_selec
     legend.get_frame().set_linewidth(2)
     legend.set_zorder(20)
 
-    for legobj in legend.legendHandles:
+    for legobj in legend.legend_handles:
         legobj.set_linewidth(5)
 
     plt.tight_layout()
@@ -722,7 +722,7 @@ def plot_correlations_grid(data_frame, keys, ref_key, outfile = "Out_correlation
             
         legend.get_frame().set_linewidth(2)
 
-        for legobj in legend.legendHandles:
+        for legobj in legend.legend_handles:
             legobj.set_sizes([100])
             legobj.set_linewidth(5)
             
