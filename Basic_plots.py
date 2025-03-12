@@ -14,7 +14,7 @@ from scipy.stats import pearsonr, spearmanr, kendalltau, ranksums, wilcoxon
 from matplotlib.offsetbox import AnchoredText
 import matplotlib as mpl
 from statsmodels.stats.multitest import multipletests
-from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.metrics import roc_curve, roc_auc_score, auc
 import re
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.optimize import curve_fit
@@ -587,7 +587,7 @@ def plot_correlations_heatmap_selection(data_frame, keys, selections, ref_key, o
     #plt.tight_layout()
     plt.savefig(outfile,bbox_inches="tight") 
     
-def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key_2, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center", discrete=None, discrete_first=False, plot_cbar=True):
+def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key_2, outfile="Out_correlation_heatmap_selection.pdf", corr_type="Spearman", p_values=None, alpha=0.05, v_lim=None, fs=15, cmap = "seismic", rotation=0, rotation_cb=0, rotation_cb_label=0, va="center", discrete=None, discrete_first=False, plot_cbar=True, y_cbar=0.5):
     
     if corr_type == "Spearman":
         
@@ -659,9 +659,9 @@ def plot_correlations_heatmap_selection_double(data_frame, keys, selections, key
         
         cbar = plt.colorbar(im, orientation="vertical", cax=cax)
         if discrete:
-            cbar.set_label("Correlation", fontsize=fs, rotation=rotation_cb_label)
+            cbar.set_label("Correlation", fontsize=fs, rotation=rotation_cb_label, y=y_cbar)
         else:
-            cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label)
+            cbar.set_label(corr_type+" correlation", fontsize=fs, rotation=rotation_cb_label, y=y_cbar)
         cbar.ax.tick_params(axis="y", labelsize=fs, rotation=rotation_cb)
     
     #plt.tight_layout()
@@ -1078,14 +1078,14 @@ def plot_violin_upper_lower(data_frame, keys, ref_key, outfile="Out_violin.pdf",
         ax.set_axisbelow(True)
         ax.grid(axis='both', color='0.8')
         
-    handles = [Patch([0],[0],color=keys[key]["Color"],label=keys[key]["Label"], alpha=0.5) for key in keys]
+    handles = [Patch(color=keys[key]["Color"],label=keys[key]["Label"], alpha=0.5) for key in keys]
     legend = ax.legend(handles=handles, fontsize=fs, bbox_to_anchor=(0.5, -0.2), fancybox=True,shadow=True,loc="upper center")
     legend.get_frame().set_linewidth(2)
     
     plt.tight_layout()
     plt.savefig(outfile)
             
-def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12, title=None, separate_ref_color=True):    
+def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12, title=None, separate_ref_color=True, y_lim=None):    
 
     if separate_ref_color:
         color_ref_0 = color_ref
@@ -1132,8 +1132,108 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
             ax.text(1.5,y_max+0.12*delta_y,"*",horizontalalignment="center", fontsize=fs_text)
         else:
             ax.text(1.5,y_max+0.12*delta_y,"n.s.",horizontalalignment="center", fontsize=fs_text)
+        
+        if not y_lim:
+            y_lim = (y_min-0.05*delta_y,y_max+0.2*delta_y)
+        
+    else:
+        if not y_lim:
+            y_lim = (y_min-0.05*delta_y,y_max+0.05*delta_y)
     
-        y_lim = (y_min-0.05*delta_y,y_max+0.2*delta_y)
+    ax.set_ylim(y_lim)
+    ax.set_xticklabels(labels,fontsize=fs,rotation=90)
+    ax.set_ylabel(y_label,fontsize=fs)
+    ax.tick_params(axis="y",labelsize=fs)
+    
+    if title:
+        ax.set_title(title, fontsize=fs)
+    
+    plt.tight_layout()
+    plt.savefig(outfile)
+
+def plot_boxplot3_list(data, outfile="Out_boxplot3.pdf", labels=("1","2","3"), y_label="y", color_ref="C0", colors=("#1F87B4","#1F63B4"), do_stats=True, paired=False, grid=True, fs=15, fs_text=12, title=None, separate_ref_color=True):    
+
+    if separate_ref_color:
+        color_ref_0 = color_ref
+        color_ref_1 = color_ref
+        color_ref_2 = color_ref
+    else:
+        color_ref_0 = colors[0]
+        color_ref_1 = colors[1]
+        color_ref_2 = colors[2]
+
+    fig,ax = plt.subplots()
+    fig.set_size_inches(3.5,5)
+    
+    data_wo_na = [[el for el in data[0] if not np.isnan(el)]]
+    data_wo_na.append([el for el in data[1] if not np.isnan(el)])
+    data_wo_na.append([el for el in data[2] if not np.isnan(el)])
+    
+    bplot = ax.boxplot(data_wo_na,patch_artist=True,medianprops=dict(color="k"),widths=0.8,showfliers=False)
+    
+    ax.scatter(np.random.uniform(0.65,1.35,len(data[0])),data[0],facecolor="w",edgecolor=color_ref_0,s=10)
+    ax.scatter(np.random.uniform(1.65,2.35,len(data[1])),data[1],facecolor="w",edgecolor=color_ref_1,s=10)
+    ax.scatter(np.random.uniform(2.65,3.35,len(data[2])),data[2],facecolor="w",edgecolor=color_ref_2,s=10)
+    
+    for patch, color in zip(bplot['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.6)
+    
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(axis='both', color='0.8')
+    
+    y_min = np.min((np.min((np.nanmin(data[0]),np.nanmin(data[1]))),np.nanmin(data[2])))
+    y_max = np.max((np.max((np.nanmax(data[0]),np.nanmax(data[1]))),np.nanmax(data[2])))
+    delta_y = y_max-y_min
+    
+    if do_stats:
+        if paired:
+            p_value = wilcoxon(data[0],data[1],nan_policy="omit")[1]
+        else:
+            p_value = ranksums(data[0],data[1],nan_policy="omit")[1]
+        #print(p_value)
+        ax.plot([1,1,1.95,1.95],[y_max+0.05*delta_y, y_max+0.1*delta_y, y_max+0.1*delta_y, y_max+0.05*delta_y],c="k",lw=1)
+        if p_value<=1e-4:
+            ax.text(1.5,y_max+0.12*delta_y,"***",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=1e-3:
+            ax.text(1.5,y_max+0.12*delta_y,"**",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=1e-2:
+            ax.text(1.5,y_max+0.12*delta_y,"*",horizontalalignment="center", fontsize=fs_text)
+        else:
+            ax.text(1.5,y_max+0.12*delta_y,"n.s.",horizontalalignment="center", fontsize=fs_text)
+            
+        if paired:
+            p_value = wilcoxon(data[1],data[2],nan_policy="omit")[1]
+        else:
+            p_value = ranksums(data[1],data[2],nan_policy="omit")[1]
+        #print(p_value)
+        ax.plot([2.05,2.05,3,3],[y_max+0.05*delta_y, y_max+0.1*delta_y, y_max+0.1*delta_y, y_max+0.05*delta_y],c="k",lw=1)
+        if p_value<=1e-4:
+            ax.text(2.5,y_max+0.12*delta_y,"***",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=1e-3:
+            ax.text(2.5,y_max+0.12*delta_y,"**",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=1e-2:
+            ax.text(2.5,y_max+0.12*delta_y,"*",horizontalalignment="center", fontsize=fs_text)
+        else:
+            ax.text(2.5,y_max+0.12*delta_y,"n.s.",horizontalalignment="center", fontsize=fs_text)
+            
+        if paired:
+            p_value = wilcoxon(data[0],data[2],nan_policy="omit")[1]
+        else:
+            p_value = ranksums(data[0],data[2],nan_policy="omit")[1]
+        #print(p_value)
+        ax.plot([1,1,3,3],[y_max+0.15*delta_y, y_max+0.2*delta_y, y_max+0.2*delta_y, y_max+0.15*delta_y],c="k",lw=1)
+        if p_value<=1e-4:
+            ax.text(2,y_max+0.22*delta_y,"***",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=1e-3:
+            ax.text(2,y_max+0.22*delta_y,"**",horizontalalignment="center", fontsize=fs_text)
+        elif p_value<=1e-2:
+            ax.text(2,y_max+0.22*delta_y,"*",horizontalalignment="center", fontsize=fs_text)
+        else:
+            ax.text(2,y_max+0.22*delta_y,"n.s.",horizontalalignment="center", fontsize=fs_text)
+    
+        y_lim = (y_min-0.05*delta_y,y_max+0.3*delta_y)
         
     else:
         y_lim = (y_min-0.05*delta_y,y_max+0.05*delta_y)
@@ -1148,7 +1248,7 @@ def plot_boxplot2_list(data, outfile="Out_boxplot2.pdf", labels=("1","2"), y_lab
     
     plt.tight_layout()
     plt.savefig(outfile)
-    
+
 def plot_bar(data, keys, outfile="Out_bar.pdf", method="mean", sort_values=False, fs=15, rotation=90, y_label="y", grid=True):
     
     keys_sorted = list(keys.keys())
@@ -1364,3 +1464,177 @@ def plot_completeness(data,label_dict,outfile="Completeness.pdf",cmap="binary",f
             ax_counts_x.plot([split*len(data.T),split*len(data.T)],[0,len(data)],ls=":",c=color_highlight,lw=3)
     
     plt.savefig(outfile,bbox_inches="tight")
+
+def plot_AUC_micro_macro(y_true, y_predicted, y_predicted_proba, color = "C0", color_micro = "C1", color_macro = "C4", fs = 15, fs_legend = 15, fs_title = 15, grid = True, outfile="AUC_micro_macro.png", title=None):
+    fig,ax = plt.subplots()
+    fig.set_size_inches(5,5)
+    
+    fpr_x = []
+    tpr_x = []
+    
+    for ind,column in enumerate(y_predicted.columns):
+        
+        indices = [index for index in y_predicted.index if ~np.isnan(y_predicted.loc[index,column])]
+        
+        fpr, tpr, _ = roc_curve(y_true.loc[indices,column],y_predicted_proba.loc[indices,column])
+        ax.plot(fpr, tpr, lw=1,c="w",zorder=19)
+        ax.plot(fpr, tpr, lw=1,c=color,zorder=20, alpha=0.1)
+        
+        fpr_x.append(fpr)
+        tpr_x.append(tpr)
+    
+    y_true_flat = y_true.values.ravel()
+    y_predicted_proba_flat = y_predicted_proba.values.ravel()
+    
+    # Micro
+    fpr, tpr, _ = roc_curve(y_true_flat[~np.isnan(y_predicted_proba_flat)], y_predicted_proba_flat[~np.isnan(y_predicted_proba_flat)])
+    ax.plot(fpr, tpr, lw=3, ls="-", label= "Micro(AUROC): {:.2f}".format(roc_auc_score(y_true_flat[~np.isnan(y_predicted_proba_flat)],  y_predicted_proba_flat[~np.isnan(y_predicted_proba_flat)])),c=color_micro, zorder=22)
+    
+    # Macro
+    fpr_full = np.unique(np.concatenate([fpr_x[i] for i in range(len(y_predicted.columns))]))
+    mean_tpr = np.zeros(len(fpr_full))
+    for i in range(len(y_predicted.columns)):
+        mean_tpr += np.interp(fpr_full, fpr_x[i], tpr_x[i])
+    mean_tpr /= len(y_predicted.columns)
+    
+    ax.plot(fpr_full, mean_tpr, lw=3, ls="--", label= "Macro(AUROC): {:.2f}".format(np.mean([auc(fpr,tpr) for fpr,tpr in zip(fpr_x,tpr_x)])),c=color_macro, zorder=22)   
+    
+    # Plot reference line
+    ax.plot([0,1],[0,1],ls="--",c="k",lw=3)
+    
+    # Set layout
+    ax.set_xlabel("1-Specificity",fontsize=fs)
+    ax.set_ylabel("Sensitivity",fontsize=fs)
+    ax.set_xticks([0.25,0.5,0.75,1.0])
+    ax.set_yticks([0.0,0.25,0.5,0.75,1.0])
+    ax.set_xticklabels([0.25,0.5,0.75,1.0],fontsize=fs)
+    ax.set_yticklabels([0.0,0.25,0.5,0.75,1.0],fontsize=fs)
+    ax.set_xlim(0,1)
+    ax.set_ylim(0,1)
+    plt.legend(loc="lower right",fontsize=fs_legend, shadow=True, fancybox=True, framealpha=1)
+    
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(axis='both', color='0.8')
+    
+    if title:
+        plt.title(title, fontsize=fs_title)
+    
+    plt.savefig(outfile,bbox_inches="tight")   
+    
+# Scatter    
+def plot_linreg_scatter_selection(data_frame, keys, selection, outfile="Out_linreg_scatter.pdf", fs=20, fs_text=15, color = "#C4C4C4", x_lim = None, y_lim = None, plot_xy = False, grid = True, legend_loc = "upper left", plot_1_over_x=False):
+    
+    fig, ax_scatter = plt.subplots()
+    fig.set_size_inches(6,6)
+    
+    key_x = list(keys.keys())[0]
+    key_y = list(keys.keys())[1]
+    
+    data_to_plot = data_frame.copy()[[key_x,key_y]]
+    data_to_plot.dropna(inplace=True)
+    
+    if not x_lim:
+        x_lim = (np.nanmin(data_to_plot[key_x])-(0.05*np.nanmax(data_to_plot[key_x])),np.nanmax(data_to_plot[key_x])+(0.05*np.nanmax(data_to_plot[key_x])))
+    
+    ax_scatter.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="w",edgecolors="w", marker=".",s=40)
+    ax_scatter.scatter(data_to_plot[key_x],data_to_plot[key_y],facecolors="None",edgecolors=color, marker=".",s=40)#,alpha=.6)
+    
+    if plot_1_over_x:
+        popt, pcov = curve_fit(fit_1_over_x, data_to_plot[key_x], data_to_plot[key_y])
+        xs = np.linspace(x_lim[0], x_lim[1],100)
+        ax_scatter.plot(xs,fit_1_over_x(xs, *popt),c=color)
+    else:
+        coef = np.polyfit(data_to_plot[key_x],data_to_plot[key_y],1)
+        poly1d_fn = np.poly1d(coef)
+        ax_scatter.plot(x_lim,poly1d_fn(x_lim),c=color)
+    
+    for key in selection:
+        ax_scatter.scatter(data_to_plot.loc[selection[key]["Indices"],key_x],data_to_plot.loc[selection[key]["Indices"],key_y],facecolors=selection[key]["Color"],edgecolors=selection[key]["Color"], marker=".", label=selection[key]["Label"])#,alpha=.6)
+        
+        if plot_1_over_x:
+            popt, pcov = curve_fit(fit_1_over_x, data_to_plot.loc[selection[key]["Indices"],key_x],data_to_plot.loc[selection[key]["Indices"],key_y])
+            xs = np.linspace(x_lim[0], x_lim[1],100)
+            ax_scatter.plot(xs,fit_1_over_x(xs, *popt),c=selection[key]["Color"])
+        else:
+            coef = np.polyfit(data_to_plot.loc[selection[key]["Indices"],key_x],data_to_plot.loc[selection[key]["Indices"],key_y],1)
+            poly1d_fn = np.poly1d(coef)
+            ax_scatter.plot(x_lim,poly1d_fn(x_lim),c=selection[key]["Color"])
+        
+    ax_scatter.set_xlabel(keys[key_x]["Label"], fontsize=fs)
+    ax_scatter.set_ylabel(keys[key_y]["Label"], fontsize=fs)
+    ax_scatter.tick_params(axis="both", labelsize=fs)
+    
+    if not x_lim:
+        x_lim = (np.nanmin(data_to_plot[key_x])-(0.05*np.nanmax(data_to_plot[key_x])),np.nanmax(data_to_plot[key_x])+(0.05*np.nanmax(data_to_plot[key_x])))
+    ax_scatter.set_xlim(x_lim)
+        
+    if not y_lim:
+        y_lim = (np.nanmin(data_to_plot[key_y])-(0.05*np.nanmax(data_to_plot[key_y])),np.nanmax(data_to_plot[key_y])+(0.05*np.nanmax(data_to_plot[key_y])))
+    ax_scatter.set_ylim(y_lim)    
+        
+    if plot_xy:
+        ax_scatter.plot(x_lim, x_lim, ls=":", c="k")
+        
+    if grid:
+        ax_scatter.set_axisbelow(True)
+        ax_scatter.grid(axis='both', color='0.8')
+    
+    try:
+        ax_scatter.legend(loc=legend_loc, fontsize=fs_text)
+    except:
+        print("legend_loc not found. Using upper left as a default.")
+        ax_scatter.legend(loc="upper_left", fontsize=fs_text)
+    
+    plt.savefig(outfile, bbox_inches="tight")
+        
+def plot_bar_multiple(data, outfile="bar_plot_multiple.png", width=0.4, x_labels=None, x_lim=None, y_lim=None, grid=True, colors=None, labels=None, legend_loc="best",fs_text=15, fs_x=15, fs_y = 15, rotation=45, ha="right", label_colors=None):
+
+    fig,ax = plt.subplots()
+    fig.set_size_inches(7.5,5)
+    
+    x = np.arange(len(data[0]))
+    multiplier = 0
+    
+    if not colors:
+        colors = ["C" + str(np.mod(ind,10)) for ind in range(len(data))]
+    
+    if not labels:
+        labels = [str(ind) for ind in range(len(data))]
+    
+    for ind_el in range(len(data)):
+        ax.bar(x+(width*multiplier),data[ind_el],width,label=labels[ind_el],color=colors[ind_el])
+        multiplier+=1
+            
+    ax.tick_params(axis="x", labelsize=fs_x)
+    ax.tick_params(axis="y", labelsize=fs_y)
+    
+    if x_labels:
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_labels,rotation=rotation,ha=ha)
+    
+    if x_lim:
+        ax.set_xlim(x_lim)
+    
+    if y_lim:
+        ax.set_ylim(y_lim)
+    
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(axis='both', color='0.8')
+        
+    if label_colors:
+        for xtick, color in zip(ax.get_xticklabels(), label_colors):
+            xtick.set_color(color)
+    
+    try:
+        plt.legend(loc=legend_loc, fontsize=fs_text)
+    except:
+        print("legend_loc not found. Using best as a default.")
+        ax.legend("best", fontsize=fs_text)
+        
+    plt.savefig(outfile, bbox_inches="tight")    
+    
+    
+    
+    
